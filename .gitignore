@@ -1,0 +1,108 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+*.tgz
+npm-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+*.js
+*.js.map
+!jest.config.js
+!setupTests.js
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Testing
+coverage/
+*.lcov
+.nyc_output/
+jest-coverage/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+.temp/
+
+# OS
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Kubernetes
+*.kubeconfig
+secrets.yaml
+
+# Sensitive files
+*.pem
+*.key
+*.crt
+private_key*
+id_rsa*
+
+# Backup files
+*.backup
+*.bak
+*.swp
+
+# Project specific
+redis-data/
+postgres-data/
+elasticsearch-data/
+rabbitmq-data/
+./logs/**

@@ -1,0 +1,71 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'banking-ai-monitor'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files:
+  # - "alert_rules.yml"
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # API Gateway
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['api-gateway:5000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Auth Service
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['auth-service:5001']
+    metrics_path: '/metrics'
+
+  # Conversation Engine
+  - job_name: 'conversation-engine'
+    static_configs:
+      - targets: ['conversation-engine:5002']
+    metrics_path: '/metrics'
+
+  # Transaction Service
+  - job_name: 'transaction-service'
+    static_configs:
+      - targets: ['transaction-service:5003']
+    metrics_path: '/metrics'
+
+  # Analytics Service
+  - job_name: 'analytics-service'
+    static_configs:
+      - targets: ['analytics-service:5004']
+    metrics_path: '/metrics'
+
+  # Voice Bot
+  - job_name: 'voice-bot'
+    static_configs:
+      - targets: ['voice-bot:5005']
+    metrics_path: '/metrics'
+
+  # PostgreSQL Exporter (if enabled)
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+
+  # Redis Exporter (if enabled)
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+
+  # Elasticsearch Exporter (if enabled)
+  # - job_name: 'elasticsearch'
+  #   static_configs:
+  #     - targets: ['es-exporter:9114']

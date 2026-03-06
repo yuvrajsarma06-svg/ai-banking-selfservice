@@ -1,0 +1,302 @@
+services:
+  # ==================== Core Databases ====================
+  postgres:
+    image: postgres:15-alpine
+    container_name: banking-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-bankinguser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-securepassword}
+      POSTGRES_DB: ${DB_NAME:-banking_ai_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-bankinguser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - banking-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: banking-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redispass}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - banking-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.6.0
+    container_name: banking-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: curl -s http://localhost:9200 >/dev/null || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - banking-network
+
+  # ==================== Message Queue ====================
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: banking-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - banking-network
+
+  # ==================== API Gateway ====================
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+      dockerfile: Dockerfile
+    container_name: banking-api-gateway
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 5000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redispass}@redis:6379
+    ports:
+      - "5000:5000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - banking-network
+    restart: unless-stopped
+
+  # ==================== Authentication Service ====================
+  auth-service:
+    build:
+      context: ./backend/auth-service
+      dockerfile: Dockerfile
+    container_name: banking-auth-service
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 5001
+      DATABASE_URL: postgresql://${DB_USER:-bankinguser}:${DB_PASSWORD:-securepassword}@postgres:5432/${DB_NAME:-banking_ai_db}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redispass}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      OAUTH_PROVIDER: ${OAUTH_PROVIDER:-okta}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - banking-network
+    restart: unless-stopped
+
+  # ==================== Conversation Engine ====================
+  conversation-engine:
+    build:
+      context: ./backend/conversation-engine
+      dockerfile: Dockerfile
+    container_name: banking-conversation-engine
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 5002
+      DATABASE_URL: postgresql://${DB_USER:-bankinguser}:${DB_PASSWORD:-securepassword}@postgres:5432/${DB_NAME:-banking_ai_db}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redispass}@redis:6379
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+      AZURE_OPENAI_KEY: ${AZURE_OPENAI_KEY:-}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
+      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-eastus}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - banking-network
+    restart: unless-stopped
+
+  # ==================== Transaction Service ====================
+  transaction-service:
+    build:
+      context: ./backend/transaction-service
+      dockerfile: Dockerfile
+    container_name: banking-transaction-service
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 5003
+      DATABASE_URL: postgresql://${DB_USER:-bankinguser}:${DB_PASSWORD:-securepassword}@postgres:5432/${DB_NAME:-banking_ai_db}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redispass}@redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+      CORE_BANKING_API: ${CORE_BANKING_API:-http://core-banking:8080}
+      CORE_BANKING_KEY: ${CORE_BANKING_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - banking-network
+    restart: unless-stopped
+
+  # ==================== Analytics Service ====================
+  analytics-service:
+    build:
+      context: ./backend/analytics-service
+      dockerfile: Dockerfile
+    container_name: banking-analytics-service
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 5004
+      DATABASE_URL: postgresql://${DB_USER:-bankinguser}:${DB_PASSWORD:-securepassword}@postgres:5432/${DB_NAME:-banking_ai_db}
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - banking-network
+    restart: unless-stopped
+
+  # ==================== Voice Bot Service ====================
+  voice-bot:
+    build:
+      context: ./voice-bot
+      dockerfile: Dockerfile
+    container_name: banking-voice-bot
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 5005
+      DATABASE_URL: postgresql://${DB_USER:-bankinguser}:${DB_PASSWORD:-securepassword}@postgres:5432/${DB_NAME:-banking_ai_db}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redispass}@redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+      CONVERSATION_ENGINE_URL: http://conversation-engine:5002
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - banking-network
+    restart: unless-stopped
+
+  # ==================== Frontend - Kiosk UI ====================
+  frontend-kiosk:
+    build:
+      context: ./frontend-kiosk
+      dockerfile: Dockerfile
+    container_name: banking-frontend-kiosk
+    environment:
+      REACT_APP_API_URL: http://api-gateway:5000/v1
+      REACT_APP_ENVIRONMENT: ${NODE_ENV:-development}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+    networks:
+      - banking-network
+    restart: unless-stopped
+
+  # ==================== Monitoring - Prometheus ====================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: banking-prometheus
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    networks:
+      - banking-network
+    restart: unless-stopped
+
+  # ==================== Monitoring - Grafana ====================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: banking-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infrastructure/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - banking-network
+    restart: unless-stopped
+
+  # ==================== Logging - Kibana ====================
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.6.0
+    container_name: banking-kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - banking-network
+    restart: unless-stopped
+
+networks:
+  banking-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  elasticsearch_data:
+  rabbitmq_data:
+  prometheus_data:
+  grafana_data:
