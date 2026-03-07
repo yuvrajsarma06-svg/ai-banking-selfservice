@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import useVoiceChat from '../hooks/useVoiceChat';
 import '../styles/VoiceService.css';
 
 function VoiceService({ email }) {
@@ -7,9 +8,14 @@ function VoiceService({ email }) {
   const [callDuration, setCallDuration] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [transcript, setTranscript] = useState('');
   const [messages, setMessages] = useState([]);
+  const [botReply, setBotReply] = useState('');
   const durationRef = React.useRef(null);
+
+  const { input: transcript, setInput: setTranscript, listening, toggleMic, stopMic, startMic } = useVoiceChat(
+    (text) => handleProcessSpeech(text),
+    botReply
+  );
 
   // Timer for call duration
   useEffect(() => {
@@ -40,7 +46,7 @@ function VoiceService({ email }) {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await fetch('http://localhost:5005/voice/call-start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -51,7 +57,7 @@ function VoiceService({ email }) {
       });
 
       const data = await response.json();
-      
+
       if (response.ok || data.success) {
         setCallId(data.callId || 'CALL' + Date.now());
         setCallStatus('active');
@@ -62,6 +68,7 @@ function VoiceService({ email }) {
           text: 'Call connected. Speak clearly to interact with voice services.',
           timestamp: new Date()
         }]);
+        startMic();
       } else {
         setError(data.error || 'Failed to start call');
       }
@@ -77,22 +84,24 @@ function VoiceService({ email }) {
         text: 'Call connected. Speak clearly to interact with voice services.',
         timestamp: new Date()
       }]);
+      startMic();
     } finally {
       setLoading(false);
     }
   };
 
-  const handleProcessSpeech = async () => {
-    if (!transcript.trim()) return;
+  const handleProcessSpeech = async (spokenText) => {
+    const textToProcess = typeof spokenText === 'string' ? spokenText : transcript;
+    if (!textToProcess.trim()) return;
 
     try {
       setLoading(true);
-      
+
       // Add user message
       const userMsg = {
         id: messages.length + 1,
         type: 'user',
-        text: transcript,
+        text: textToProcess,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, userMsg]);
@@ -102,21 +111,24 @@ function VoiceService({ email }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           callId: callId,
-          speechInput: transcript,
+          speechInput: textToProcess,
           userId: email
         })
       });
 
       const data = await response.json();
-      
+
+      const replyText = data.response || 'Processing your request...';
+
       // Add bot response
       const botMsg = {
         id: messages.length + 2,
         type: 'bot',
-        text: data.response || 'Processing your request...',
+        text: replyText,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, botMsg]);
+      setBotReply(replyText);
 
       setTranscript('');
     } catch (err) {
@@ -129,7 +141,8 @@ function VoiceService({ email }) {
   const handleEndCall = async () => {
     try {
       setLoading(true);
-      
+      stopMic();
+
       await fetch('http://localhost:5005/voice/call-end', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -160,6 +173,7 @@ function VoiceService({ email }) {
     setCallId(null);
     setCallDuration(0);
     setTranscript('');
+    setBotReply('');
     setMessages([]);
     setError(null);
   };
@@ -176,8 +190,8 @@ function VoiceService({ email }) {
           <div className="voice-icon-large">📞</div>
           <h4>Ready to Connect</h4>
           <p>Click the button below to start a voice call with our support team</p>
-          <button 
-            onClick={handleStartCall} 
+          <button
+            onClick={handleStartCall}
             disabled={loading}
             className="btn-start-call"
           >
@@ -203,22 +217,23 @@ function VoiceService({ email }) {
                 <p className="transcript-label">What would you like to do?</p>
                 <p className="transcript-text">{transcript || '(listening...)'}</p>
               </div>
-              
+
               <div className="input-group">
                 <input
                   type="text"
                   value={transcript}
-                  onChange={(e) => setTranscript(e.target.value)}
-                  placeholder="Enter what you'd like to do or press microphone..."
+                  readOnly
+                  placeholder={listening ? "(Listening to you speak...)" : "Press microphone to speak"}
                   className="voice-input"
-                  disabled={loading}
+                  style={{ backgroundColor: '#f5f7fa', color: '#666' }}
                 />
-                <button 
-                  onClick={handleProcessSpeech}
-                  disabled={loading || !transcript.trim()}
-                  className="btn-send-speech"
+                <button
+                  onClick={toggleMic}
+                  disabled={loading}
+                  className={`btn-send-speech ${listening ? 'listening' : ''}`}
+                  title="Toggle Microphone"
                 >
-                  {loading ? '...' : '🎤'}
+                  {listening ? '🛑' : '🎤'}
                 </button>
               </div>
             </div>
@@ -237,7 +252,7 @@ function VoiceService({ email }) {
 
           <div className="call-actions">
             {callStatus === 'active' && (
-              <button 
+              <button
                 onClick={handleEndCall}
                 disabled={loading}
                 className="btn-end-call"
@@ -255,7 +270,7 @@ function VoiceService({ email }) {
           <h4>Call Ended</h4>
           <p>Call Duration: {formatDuration(callDuration)}</p>
           <p className="thank-you">Thank you for using our voice service</p>
-          <button 
+          <button
             onClick={handleNewCall}
             className="btn-new-call"
           >

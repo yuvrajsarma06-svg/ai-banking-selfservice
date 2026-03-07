@@ -1,76 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Mic, MicOff, Volume1, Volume2, Bot, User, Send, ServerCrash } from 'lucide-react';
+import useVoiceChat from '../hooks/useVoiceChat';
 import '../styles/ChatService.css';
 
 function ChatService({ email }) {
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState(null);
   const [error, setError] = useState(null);
-  const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [agentConnected, setAgentConnected] = useState(false);
   const [waitingForAgent, setWaitingForAgent] = useState(false);
   const messagesEndRef = useRef(null);
-  const recognitionRef = useRef(null);
+  const [botReply, setBotReply] = useState('');
 
-  // Initialize speech recognition
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
-
-      recognitionRef.current.onstart = () => {
-        setIsListening(true);
-        setError(null);
-      };
-
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-      };
-
-      recognitionRef.current.onresult = (event) => {
-        let transcript = '';
-        for (let i = 0; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
-        }
-        
-        if (event.results[0].isFinal) {
-          setInput(transcript);
-          // Auto-send the message after speech ends
-          if (transcript.trim()) {
-            setTimeout(() => {
-              handleSendMessageWithText(transcript);
-            }, 500);
-          }
-        }
-      };
-
-      recognitionRef.current.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-        if (event.error === 'not-allowed') {
-          setError('Microphone access denied. Please allow microphone permissions.');
-        } else if (event.error === 'no-speech') {
-          setError('No speech detected. Please try again.');
-        } else {
-          setError('Microphone error: ' + event.error);
-        }
-      };
-    }
-
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {}
-      }
-    };
-  }, []);
+  const { input, setInput, listening: isListening, toggleMic: toggleMicrophone } = useVoiceChat(
+    (text) => handleSendMessageWithVoice(text),
+    botReply
+  );
 
   // Text to speech function
   const speakText = (text) => {
@@ -81,7 +28,7 @@ function ChatService({ email }) {
       utterance.rate = 1;
       utterance.pitch = 1;
       utterance.volume = 1;
-      
+
       utterance.onstart = () => setIsSpeaking(true);
       utterance.onend = () => setIsSpeaking(false);
       utterance.onerror = () => setIsSpeaking(false);
@@ -90,23 +37,6 @@ function ChatService({ email }) {
     }
   };
 
-  // Toggle microphone
-  const toggleMicrophone = () => {
-    if (recognitionRef.current) {
-      if (isListening) {
-        recognitionRef.current.stop();
-      } else {
-        setError(null);
-        try {
-          recognitionRef.current.start();
-        } catch (e) {
-          setError('Could not start microphone. Please try again.');
-        }
-      }
-    } else {
-      setError('Speech recognition not supported. Please use Chrome or Edge.');
-    }
-  };
 
   // Toggle text-to-speech for bot messages
   const toggleSpeak = (text) => {
@@ -132,7 +62,7 @@ function ChatService({ email }) {
         })
       });
       const data = await response.json();
-      
+
       if (data.success) {
         if (data.queued) {
           setMessages(prev => [...prev, {
@@ -165,7 +95,7 @@ function ChatService({ email }) {
   // Local fallback responses when backend is unavailable
   const getLocalResponse = (message) => {
     const msg = message.toLowerCase();
-    
+
     // Greetings
     if (msg.includes('hi') || msg.includes('hello') || msg.includes('hey') || msg.includes('start') || msg.includes('begin')) {
       return `Hello! Welcome to our Banking AI Assistant! 🏦
@@ -184,7 +114,7 @@ function ChatService({ email }) {
 
 How may I assist you today?`;
     }
-    
+
     // Transfer related
     if (msg.includes('transfer') || msg.includes('send money') || msg.includes('neft') || msg.includes('rtgs') || msg.includes('upi')) {
       return `💰 Money Transfer Service
@@ -198,7 +128,7 @@ To proceed, please tell me:
 1. Amount you want to transfer
 2. Recipient's account number or UPI ID`;
     }
-    
+
     // Account Balance
     if (msg.includes('balance') || msg.includes('account balance') || msg.includes('how much')) {
       return `📊 Account Balance Service
@@ -208,7 +138,7 @@ Your linked account details:
 • Current Balance: ₹15,750.50
 • Available Balance: ₹15,750.50`;
     }
-    
+
     // Statement
     if (msg.includes('statement') || msg.includes('transaction') || msg.includes('history')) {
       return `📋 Mini Statement - Last 5 Transactions:
@@ -219,7 +149,7 @@ Your linked account details:
 4. 📤 Dr - Bill Payment - ₹1,500
 5. 📥 Cr - Refund - ₹2,500`;
     }
-    
+
     // Bill Payments
     if (msg.includes('bill') || msg.includes('payment')) {
       return `💳 Bill Payment Service
@@ -233,7 +163,7 @@ You can pay:
 
 Which bill would you like to pay?`;
     }
-    
+
     // Card
     if (msg.includes('card') || msg.includes('debit') || msg.includes('block')) {
       return `🎫 Card Management Service
@@ -248,7 +178,7 @@ Available Actions:
 3. Set Limit
 4. PIN Services`;
     }
-    
+
     // Loan
     if (msg.includes('loan') || msg.includes('eligibility')) {
       return `🏠 Loan Services
@@ -261,7 +191,7 @@ We offer:
 
 Which loan would you like to know more about?`;
     }
-    
+
     // Help
     if (msg.includes('help') || msg.includes('what can you do')) {
       return `I can help you with:
@@ -277,21 +207,21 @@ Which loan would you like to know more about?`;
 
 Just tell me what you'd like to do!`;
     }
-    
+
     // Thank you
     if (msg.includes('thank')) {
       return `You're welcome! 😊
 
 Is there anything else I can help you with today?`;
     }
-    
+
     // Goodbye
     if (msg.includes('bye') || msg.includes('goodbye') || msg.includes('quit')) {
       return `Thank you for using our Banking AI Assistant! 👋
 
 Have a great day! Goodbye!`;
     }
-    
+
     // Default fallback
     return `I understand you're asking about "${message}". 
 
@@ -318,7 +248,7 @@ Could you please clarify which service you'd like to use?`;
         });
         const data = await response.json();
         setConversationId(data.conversationId);
-        
+
         // Add welcome message with services menu
         setMessages([{
           id: 1,
@@ -390,7 +320,7 @@ How may I assist you today?`,
       });
 
       const data = await response.json();
-      
+
       // Add bot response
       const botMessage = {
         id: messages.length + 2,
@@ -415,29 +345,81 @@ How may I assist you today?`,
     }
   };
 
+  const handleSendMessageWithVoice = async (text) => {
+    if (!text.trim()) return;
+
+    const userMessage = {
+      id: messages.length + 1,
+      sender: 'user',
+      text: text,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setLoading(true);
+
+    try {
+      const response = await fetch('http://localhost:5005/v1/voice/process-speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callId: conversationId || 'CALL' + Date.now(),
+          audioData: text
+        })
+      });
+
+      const data = await response.json();
+
+      const botResponseText = data.response || 'I understood your voice message.';
+      const botMessage = {
+        id: messages.length + 2,
+        sender: 'bot',
+        text: botResponseText,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, botMessage]);
+      window.speechSynthesis.cancel();
+      setBotReply(botResponseText);
+    } catch (err) {
+      console.log('Voice backend unavailable, using local response:', err.message);
+      const localResponse = getLocalResponse(text);
+      const botMessage = {
+        id: messages.length + 2,
+        sender: 'bot',
+        text: localResponse,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, botMessage]);
+      window.speechSynthesis.cancel();
+      setBotReply(localResponse);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     await handleSendMessageWithText(input);
   };
 
   return (
-    <div className="chat-service">
+    <div className={`chat-service ${agentConnected ? 'agent-connected' : ''}`}>
       <div className="chat-header">
-        <h3>💬 Chat with AI Assistant</h3>
+        <h3><Bot size={24} /> AI Support</h3>
         {!agentConnected && !waitingForAgent && (
-          <button 
+          <button
             className="btn-agent"
             onClick={requestAgent}
             disabled={waitingForAgent}
           >
-            👤 Connect to Agent
+            Connect to Agent
           </button>
         )}
         {waitingForAgent && <span className="waiting-text">Connecting to agent...</span>}
-        {error && <div className="error-message">{error}</div>}
       </div>
 
       <div className="messages-container">
+        {error && <div className="error-message">{error}</div>}
         {messages.map((msg) => (
           <div key={msg.id} className={`message message-${msg.sender}`}>
             <div className="message-content">
@@ -447,12 +429,12 @@ How may I assist you today?`,
                   {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
                 {msg.sender === 'bot' && (
-                  <button 
-                    className="btn-speak" 
+                  <button
+                    className="btn-speak"
                     onClick={() => toggleSpeak(msg.text)}
                     title={isSpeaking ? 'Stop' : 'Listen'}
                   >
-                    {isSpeaking ? '🔊' : '🔈'}
+                    {isSpeaking ? <Volume2 size={16} /> : <Volume1 size={16} />}
                   </button>
                 )}
               </div>
@@ -472,14 +454,14 @@ How may I assist you today?`,
       </div>
 
       <form onSubmit={handleSendMessage} className="chat-form">
-        <button 
-          type="button" 
+        <button
+          type="button"
           onClick={toggleMicrophone}
           className={`btn-mic ${isListening ? 'listening' : ''}`}
           title={isListening ? 'Listening...' : 'Click to speak'}
           disabled={loading || agentConnected}
         >
-          {isListening ? '🎤' : '🎙️'}
+          {isListening ? <Mic size={20} /> : <MicOff size={20} />}
         </button>
         <input
           type="text"
@@ -490,7 +472,7 @@ How may I assist you today?`,
           className="chat-input"
         />
         <button type="submit" disabled={loading || isListening || !input.trim() || agentConnected} className="btn-send">
-          {loading ? '...' : 'Send'}
+          <Send size={18} />
         </button>
       </form>
     </div>
