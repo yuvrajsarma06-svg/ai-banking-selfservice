@@ -1,0 +1,419 @@
+.face-auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  padding: 20px;
+}
+
+.face-auth-box {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  max-width: 550px;
+  width: 100%;
+}
+
+.face-auth-header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.face-auth-header h2 {
+  color: #333;
+  margin: 0 0 8px 0;
+  font-size: 24px;
+}
+
+.face-auth-header p {
+  color: #666;
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Camera wrapper */
+.camera-wrapper {
+  position: relative;
+  width: 100%;
+  height: 360px;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+/* Video element */
+.camera-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  z-index: 1;
+}
+
+/* Face guide overlay */
+.face-guide-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Dynamic oval frame - follows detected face */
+.face-frame {
+  position: absolute;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 
+    0 0 0 9999px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(0, 0, 0, 0.3);
+  transition: 
+    left 0.15s ease-out,
+    top 0.15s ease-out,
+    width 0.15s ease-out,
+    height 0.15s ease-out,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+/* Face NOT aligned - RED */
+.face-frame.misaligned {
+  border-color: #ff4444;
+  box-shadow: 
+    0 0 0 9999px rgba(0, 0, 0, 0.5),
+    0 0 25px rgba(255, 68, 68, 0.7);
+}
+
+.face-frame.misaligned::before {
+  content: '!';
+  position: absolute;
+  top: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ff4444;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* Face properly aligned - GREEN with animation */
+.face-frame.aligned {
+  border-color: #4CAF50;
+  box-shadow: 
+    0 0 0 9999px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(76, 175, 80, 0.8),
+    inset 0 0 40px rgba(76, 175, 80, 0.3);
+  animation: pulse-green 1.5s ease-in-out infinite;
+}
+
+.face-frame.aligned::before {
+  content: '✓';
+  position: absolute;
+  top: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #4CAF50;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* Pulsing green animation */
+@keyframes pulse-green {
+  0%, 100% {
+    box-shadow: 
+      0 0 0 9999px rgba(0, 0, 0, 0.5),
+      0 0 35px rgba(76, 175, 80, 0.6),
+      inset 0 0 30px rgba(76, 175, 80, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 0 0 9999px rgba(0, 0, 0, 0.5),
+      0 0 55px rgba(76, 175, 80, 1),
+      inset 0 0 50px rgba(76, 175, 80, 0.4);
+  }
+}
+
+/* Scanning animation */
+.scan-line {
+  position: absolute;
+  left: 5%;
+  width: 90%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #4CAF50, transparent);
+  animation: scan 2s ease-in-out infinite;
+}
+
+@keyframes scan {
+  0%, 100% {
+    top: 10%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    top: 90%;
+    opacity: 0;
+  }
+}
+
+/* Alignment status message */
+.alignment-status {
+  position: absolute;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  border-radius: 25px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+  z-index: 10;
+}
+
+.alignment-status.warning {
+  background: rgba(255, 100, 50, 0.95);
+  color: white;
+  border: 2px solid #ff4444;
+}
+
+.alignment-status.success {
+  background: rgba(76, 175, 80, 0.95);
+  color: white;
+  border: 2px solid #4CAF50;
+  animation: status-pulse 1s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  0%, 100% {
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.05);
+  }
+}
+
+/* Loading state */
+.camera-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: #000;
+  color: white;
+  z-index: 10;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #4CAF50;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error state */
+.camera-error {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: #000;
+  color: white;
+  padding: 20px;
+  text-align: center;
+  z-index: 10;
+}
+
+.camera-error p {
+  margin-bottom: 15px;
+  color: #ff6b6b;
+}
+
+/* Captured image preview */
+.captured-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  z-index: 5;
+}
+
+.captured-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+/* Status bar */
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.status-text {
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Buttons */
+.face-auth-actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.button-group {
+  display: flex;
+  gap: 15px;
+}
+
+.btn-capture {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-capture:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-capture:disabled,
+.btn-capture.disabled {
+  background: #999;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.btn-verify {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-retry {
+  background: #f5f5f5;
+  color: #333;
+  border: 2px solid #ddd;
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Verifying state */
+.verifying {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.verifying p {
+  color: #4CAF50;
+  font-weight: 500;
+}
+
+/* Tips section */
+.face-auth-tips {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.face-auth-tips h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 14px;
+}
+
+.face-auth-tips ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.face-auth-tips li {
+  color: #666;
+  font-size: 13px;
+  margin-bottom: 5px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .face-auth-box {
+    padding: 20px;
+  }
+
+  .camera-wrapper {
+    height: 280px;
+  }
+
+  .face-auth-header h2 {
+    font-size: 20px;
+  }
+}
+

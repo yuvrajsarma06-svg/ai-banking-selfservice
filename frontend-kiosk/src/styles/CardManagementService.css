@@ -1,0 +1,225 @@
+.card-management-service {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.card-management-service h3 {
+  color: #333;
+  margin-bottom: 25px;
+  font-size: 22px;
+}
+
+.cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.card-item {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: #f9f9f9;
+  border-radius: 10px;
+  border-left: 5px solid #667eea;
+  transition: all 0.3s;
+}
+
+.card-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateX(5px);
+}
+
+.card-icon {
+  font-size: 40px;
+}
+
+.card-info {
+  flex: 1;
+}
+
+.card-number {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.card-type,
+.card-expiry {
+  color: #999;
+  font-size: 14px;
+}
+
+.card-status {
+  display: flex;
+  align-items: center;
+}
+
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.active {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-badge.blocked {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.btn-manage {
+  padding: 8px 16px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-manage:hover {
+  background: #764ba2;
+  transform: translateY(-2px);
+}
+
+.card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.btn-back-card {
+  align-self: flex-start;
+  padding: 8px 16px;
+  background: white;
+  color: #667eea;
+  border: 2px solid #667eea;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-back-card:hover {
+  background: #667eea;
+  color: white;
+}
+
+.selected-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 25px;
+  border-radius: 10px;
+}
+
+.selected-card h4 {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+}
+
+.selected-card p {
+  margin: 8px 0;
+}
+
+.card-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+}
+
+.btn-block-card,
+.btn-reissue-card,
+.btn-set-limit {
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-block-card {
+  background: #f44336;
+  color: white;
+}
+
+.btn-block-card:hover {
+  background: #d32f2f;
+  transform: translateY(-2px);
+}
+
+.btn-reissue-card {
+  background: #2196f3;
+  color: white;
+}
+
+.btn-reissue-card:hover {
+  background: #1976d2;
+  transform: translateY(-2px);
+}
+
+.btn-set-limit {
+  background: #4caf50;
+  color: white;
+}
+
+.btn-set-limit:hover {
+  background: #388e3c;
+  transform: translateY(-2px);
+}
+
+.action-result {
+  text-align: center;
+  padding: 30px;
+  background: #f9f9f9;
+  border-radius: 10px;
+}
+
+.success-checkmark {
+  font-size: 50px;
+  color: #2ecc71;
+  margin-bottom: 15px;
+}
+
+.result-message {
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.delivery-info {
+  color: #999;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.btn-done {
+  padding: 10px 25px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-done:hover {
+  background: #764ba2;
+}
+
+.card-loading {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+}
