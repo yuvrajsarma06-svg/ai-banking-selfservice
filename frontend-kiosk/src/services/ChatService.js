@@ -288,6 +288,66 @@ How may I assist you today?`,
     startConversation();
   }, [email]);
 
+  // Poll for new messages (e.g., from Agent)
+  useEffect(() => {
+    if (!conversationId || conversationId.startsWith('local_')) return;
+
+    const fetchMessages = async () => {
+      try {
+        const response = await fetch(`http://localhost:5002/conversations/${conversationId}/messages`);
+        const data = await response.json();
+
+        if (data.success && data.messages) {
+          const hasAgentMsg = data.messages.some(m => m.role === 'agent');
+          if (hasAgentMsg) setAgentConnected(true);
+
+          setMessages(prev => {
+            let newPrev = [...prev];
+            let changed = false;
+
+            data.messages.forEach((serverMsg, index) => {
+              const existingWithId = newPrev.find(m => m.serverId === index);
+              if (existingWithId) return;
+
+              // Find an unmapped optimistic message that matches
+              let optimisticMatch = undefined;
+              let matchIndex = -1;
+              for (let i = newPrev.length - 1; i >= 0; i--) {
+                const m = newPrev[i];
+                if (m.serverId === undefined && m.sender === serverMsg.role && m.text === serverMsg.content) {
+                  optimisticMatch = m;
+                  matchIndex = i;
+                  break;
+                }
+              }
+
+              if (optimisticMatch) {
+                newPrev[matchIndex] = { ...optimisticMatch, serverId: index };
+                changed = true;
+              } else {
+                newPrev.push({
+                  id: newPrev.length + 1,
+                  sender: serverMsg.role,
+                  text: serverMsg.content,
+                  timestamp: new Date(serverMsg.timestamp),
+                  serverId: index
+                });
+                changed = true;
+              }
+            });
+
+            return changed ? newPrev : prev;
+          });
+        }
+      } catch (err) {
+        console.log('Error polling for messages:', err.message);
+      }
+    };
+
+    const pollInterval = setInterval(fetchMessages, 1500);
+    return () => clearInterval(pollInterval);
+  }, [conversationId]);
+
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -321,25 +381,31 @@ How may I assist you today?`,
 
       const data = await response.json();
 
-      // Add bot response
-      const botMessage = {
-        id: messages.length + 2,
-        sender: 'bot',
-        text: data.response || 'I understood your message. How else can I help?',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, botMessage]);
+      // Add bot response ONLY if there is one (prevents bot from talking during agent chat)
+      if (data.response) {
+        setMessages(prev => {
+          const lastMsg = prev[prev.length - 1];
+          if (lastMsg && lastMsg.sender === 'bot' && lastMsg.text === data.response) return prev;
+          return [
+            ...prev,
+            { id: prev.length + 1, sender: 'bot', text: data.response, timestamp: new Date() }
+          ];
+        });
+      }
     } catch (err) {
       // Use local fallback response when backend is unavailable
       console.log('Backend unavailable, using local response:', err.message);
       const localResponse = getLocalResponse(text);
-      const botMessage = {
-        id: messages.length + 2,
-        sender: 'bot',
-        text: localResponse,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, botMessage]);
+      if (localResponse) {
+        setMessages(prev => {
+          const lastMsg = prev[prev.length - 1];
+          if (lastMsg && lastMsg.sender === 'bot' && lastMsg.text === localResponse) return prev;
+          return [
+            ...prev,
+            { id: prev.length + 1, sender: 'bot', text: localResponse, timestamp: new Date() }
+          ];
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -347,6 +413,12 @@ How may I assist you today?`,
 
   const handleSendMessageWithVoice = async (text) => {
     if (!text.trim()) return;
+
+    // If agent is connected, treat voice just like a regular text message directly to the agent.
+    if (agentConnected) {
+      await handleSendMessageWithText(text);
+      return;
+    }
 
     const userMessage = {
       id: messages.length + 1,
@@ -371,25 +443,31 @@ How may I assist you today?`,
       const data = await response.json();
 
       const botResponseText = data.response || 'I understood your voice message.';
-      const botMessage = {
-        id: messages.length + 2,
-        sender: 'bot',
-        text: botResponseText,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, botMessage]);
+      setMessages(prev => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg && lastMsg.sender === 'bot' && lastMsg.text === botResponseText) return prev;
+        return [...prev, {
+          id: prev.length + 1,
+          sender: 'bot',
+          text: botResponseText,
+          timestamp: new Date()
+        }];
+      });
       window.speechSynthesis.cancel();
       setBotReply(botResponseText);
     } catch (err) {
       console.log('Voice backend unavailable, using local response:', err.message);
       const localResponse = getLocalResponse(text);
-      const botMessage = {
-        id: messages.length + 2,
-        sender: 'bot',
-        text: localResponse,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, botMessage]);
+      setMessages(prev => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg && lastMsg.sender === 'bot' && lastMsg.text === localResponse) return prev;
+        return [...prev, {
+          id: prev.length + 1,
+          sender: 'bot',
+          text: localResponse,
+          timestamp: new Date()
+        }];
+      });
       window.speechSynthesis.cancel();
       setBotReply(localResponse);
     } finally {
@@ -459,7 +537,7 @@ How may I assist you today?`,
           onClick={toggleMicrophone}
           className={`btn-mic ${isListening ? 'listening' : ''}`}
           title={isListening ? 'Listening...' : 'Click to speak'}
-          disabled={loading || agentConnected}
+          disabled={loading}
         >
           {isListening ? <Mic size={20} /> : <MicOff size={20} />}
         </button>
@@ -468,10 +546,10 @@ How may I assist you today?`,
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={isListening ? "Listening..." : agentConnected ? "Message the agent..." : "Type your message..."}
-          disabled={loading || isListening || agentConnected}
+          disabled={loading || isListening}
           className="chat-input"
         />
-        <button type="submit" disabled={loading || isListening || !input.trim() || agentConnected} className="btn-send">
+        <button type="submit" disabled={loading || isListening || !input.trim()} className="btn-send">
           <Send size={18} />
         </button>
       </form>

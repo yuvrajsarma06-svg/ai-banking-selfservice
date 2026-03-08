@@ -23,18 +23,18 @@ import './styles/QueueManagementService.css';
 function App() {
   // Simple hash-based routing
   const [currentRoute, setCurrentRoute] = useState(window.location.hash.replace('#/', '') || '');
-  
+
   // Listen for hash changes
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#/', '') || '';
       setCurrentRoute(hash);
     };
-    
+
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
-  
+
   // Authentication states
   const [authStep, setAuthStep] = useState('login'); // login, otp, biometric, authenticated
   const [email, setEmail] = useState('');
@@ -43,7 +43,7 @@ function App() {
   const [userRole, setUserRole] = useState('customer');
   const [sessionToken, setSessionToken] = useState(null);
   const [sessionExpiry, setSessionExpiry] = useState(null);
-  
+
   // User profile data (captured during authentication)
   const [userProfile, setUserProfile] = useState({
     capturedFace: null,
@@ -169,7 +169,7 @@ function App() {
 
   const t = translations[language];
 
-const handleLogin = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     try {
       const response = await fetch('/api/auth/request-otp', {
@@ -177,7 +177,7 @@ const handleLogin = async (e) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
       });
-      
+
       let data;
       try {
         // Read response text first
@@ -193,7 +193,7 @@ const handleLogin = async (e) => {
         setAuthStep('otp');
         return;
       }
-      
+
       if (data.success || response.ok) {
         if (data.debugOtp) {
           alert(`Demo Mode: Your OTP is ${data.debugOtp}\n(Also check console for logged OTP)`);
@@ -223,14 +223,14 @@ const handleLogin = async (e) => {
       setAuthStep('biometric');
       return;
     }
-    
+
     try {
       const response = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp })
       });
-      
+
       let data;
       try {
         // Read response text first
@@ -246,7 +246,7 @@ const handleLogin = async (e) => {
         setAuthStep('biometric');
         return;
       }
-      
+
       if (data.success || response.ok) {
         setSessionToken(data.token || 'session-' + Date.now());
         setSessionExpiry(new Date().getTime() + 30 * 60 * 1000);
@@ -365,7 +365,7 @@ const handleLogin = async (e) => {
           </div>
         )}
 
-{authStep === 'biometric' && (
+        {authStep === 'biometric' && (
           <div className="login-container">
             <h2>{t.biometric}</h2>
             <FaceAuth onSuccess={() => {
@@ -389,8 +389,8 @@ const handleLogin = async (e) => {
 
             {currentService === 'admin' && userRole === 'admin' ? (
               <div className="service-detail">
-                <button 
-                  onClick={() => setCurrentService(null)} 
+                <button
+                  onClick={() => setCurrentService(null)}
                   className="btn-back"
                 >
                   {t.backServices}
@@ -399,13 +399,13 @@ const handleLogin = async (e) => {
               </div>
             ) : currentService ? (
               <div className="service-detail">
-                <button 
-                  onClick={() => setCurrentService(null)} 
+                <button
+                  onClick={() => setCurrentService(null)}
                   className="btn-back"
                 >
                   {t.backServices}
                 </button>
-                
+
                 {currentService === 'chat' && <ChatService email={email} />}
                 {currentService === 'transfer' && <TransferService email={email} />}
                 {currentService === 'account' && <AccountService email={email} />}
@@ -479,7 +479,7 @@ const handleLogin = async (e) => {
       </main>
 
       {showAccessibility && (
-        <AccessibilitySettings 
+        <AccessibilitySettings
           accessibility={accessibility}
           setAccessibility={setAccessibility}
           onClose={() => setShowAccessibility(false)}
@@ -492,6 +492,10 @@ const handleLogin = async (e) => {
     </>
   );
 
+  if (currentRoute === 'agent-login' || currentRoute === 'agent-dashboard') {
+    return renderContent();
+  }
+
   return (
     <div className={appClassName} style={fontSizeStyle}>
       <header className="App-header">
@@ -502,22 +506,22 @@ const handleLogin = async (e) => {
           </div>
           {isLoggedIn && (
             <div style={{ display: 'flex', gap: '10px' }}>
-              <select 
-                value={language} 
+              <select
+                value={language}
                 onChange={(e) => setLanguage(e.target.value)}
                 style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', cursor: 'pointer' }}
               >
                 <option value="en">English</option>
                 <option value="hi">हिंदी</option>
               </select>
-              <button 
+              <button
                 onClick={() => setShowAccessibility(true)}
                 style={{ padding: '8px 16px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '600' }}
               >
                 ♿ {t.biometric}
               </button>
               {userRole === 'admin' && (
-                <button 
+                <button
                   onClick={() => setCurrentService('admin')}
                   style={{ padding: '8px 16px', background: '#764ba2', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '600' }}
                 >

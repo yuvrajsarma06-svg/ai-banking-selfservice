@@ -10,6 +10,12 @@ function AgentDashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (activeChats.length > 0 && !selectedChat) {
+      setSelectedChat(activeChats[0]);
+    }
+  }, [activeChats, selectedChat]);
+
+  useEffect(() => {
     // Check if agent is logged in
     const storedAgentId = sessionStorage.getItem('agentId');
     const storedAgentName = sessionStorage.getItem('agentName');
@@ -25,63 +31,39 @@ function AgentDashboard() {
 
     // Simulate fetching active chats from server
     fetchActiveChats();
-    
-    // Poll for new chats every 5 seconds
-    const interval = setInterval(fetchActiveChats, 5000);
+
+    // Poll for new chats every 1.5 seconds
+    const interval = setInterval(fetchActiveChats, 1500);
     return () => clearInterval(interval);
   }, []);
 
   const fetchActiveChats = async () => {
     try {
-      // In real app, this would fetch from backend
-      // For demo, we'll create mock data if empty
-      const mockChats = [
-        {
-          id: 'CONV_001',
-          userId: 'user1@example.com',
-          userName: 'John Doe',
-          lastMessage: 'I want to check my account balance',
-          timestamp: new Date(),
-          unread: true,
-          messages: [
-            { sender: 'user', text: 'Hello, I need help', time: new Date(Date.now() - 60000) },
-            { sender: 'bot', text: 'How can I assist you today?', time: new Date(Date.now() - 50000) },
-            { sender: 'user', text: 'I want to check my account balance', time: new Date(Date.now() - 10000) }
-          ]
-        },
-        {
-          id: 'CONV_002',
-          userId: 'user2@example.com',
-          userName: 'Jane Smith',
-          lastMessage: 'How do I apply for a home loan?',
-          timestamp: new Date(Date.now() - 300000),
-          unread: true,
-          messages: [
-            { sender: 'user', text: 'Hi, I\'m interested in home loans', time: new Date(Date.now() - 400000) },
-            { sender: 'bot', text: 'I can help with that. What type of home loan are you looking for?', time: new Date(Date.now() - 350000) },
-            { sender: 'user', text: 'How do I apply for a home loan?', time: new Date(Date.now() - 300000) }
-          ]
-        },
-        {
-          id: 'CONV_003',
-          userId: 'user3@example.com',
-          userName: 'Mike Johnson',
-          lastMessage: 'My card is not working',
-          timestamp: new Date(Date.now() - 600000),
-          unread: false,
-          messages: [
-            { sender: 'user', text: 'My ATM card is not working', time: new Date(Date.now() - 700000) },
-            { sender: 'bot', text: 'I\'m sorry to hear that. Let me help you with card issues.', time: new Date(Date.now() - 650000) },
-            { sender: 'user', text: 'It shows declined every time I try to use it', time: new Date(Date.now() - 620000) },
-            { sender: 'bot', text: 'Let me check your card status. Please hold on.', time: new Date(Date.now() - 610000) },
-            { sender: 'user', text: 'My card is not working', time: new Date(Date.now() - 600000) }
-          ]
-        }
-      ];
-      
-      setActiveChats(mockChats);
-      if (mockChats.length > 0 && !selectedChat) {
-        setSelectedChat(mockChats[0]);
+      const storedAgentId = sessionStorage.getItem('agentId');
+      const response = await fetch(`http://localhost:5002/agent/${storedAgentId}/chats`);
+      const data = await response.json();
+
+      if (data.success && data.chats) {
+        // Parse dates from strings for consistency with existing UI
+        const formattedChats = data.chats.map(chat => ({
+          ...chat,
+          timestamp: new Date(chat.timestamp),
+          messages: chat.messages.map(m => ({
+            ...m,
+            time: new Date(m.time)
+          }))
+        }));
+
+        setActiveChats(formattedChats);
+
+        // If we have a selected chat, strictly update its reference so the view re-renders fresh messages
+        setSelectedChat(prevSelected => {
+          if (prevSelected) {
+            const updatedMatchedChat = formattedChats.find(c => c.id === prevSelected.id);
+            return updatedMatchedChat || prevSelected;
+          }
+          return null;
+        });
       }
     } catch (error) {
       console.error('Error fetching chats:', error);
@@ -95,32 +77,30 @@ function AgentDashboard() {
     window.location.hash = '#/agent-login';
   };
 
-  const handleSendReply = (e) => {
+  const handleSendReply = async (e) => {
     e.preventDefault();
     if (!replyText.trim() || !selectedChat) return;
 
-    const newMessage = {
-      sender: 'agent',
-      text: replyText,
-      time: new Date()
-    };
+    const messageText = replyText;
+    setReplyText(''); // Optimistically clear input
 
-    // Update the selected chat with the new message
-    const updatedChats = activeChats.map(chat => {
-      if (chat.id === selectedChat.id) {
-        return {
-          ...chat,
-          messages: [...chat.messages, newMessage],
-          lastMessage: replyText,
-          timestamp: new Date()
-        };
-      }
-      return chat;
-    });
+    try {
+      await fetch('http://localhost:5002/agent/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: selectedChat.id,
+          message: messageText,
+          agentId: agentId
+        })
+      });
 
-    setActiveChats(updatedChats);
-    setSelectedChat(updatedChats.find(c => c.id === selectedChat.id));
-    setReplyText('');
+      // Fetch fresh chats to update UI immediately
+      fetchActiveChats();
+    } catch (error) {
+      console.error('Error sending reply:', error);
+      alert('Failed to send message. Please try again.');
+    }
   };
 
   if (isLoading) {
@@ -148,8 +128,8 @@ function AgentDashboard() {
           <h2>Active Chats ({activeChats.length})</h2>
           <div className="chat-items">
             {activeChats.map(chat => (
-              <div 
-                key={chat.id} 
+              <div
+                key={chat.id}
                 className={`chat-item ${selectedChat?.id === chat.id ? 'active' : ''} ${chat.unread ? 'unread' : ''}`}
                 onClick={() => setSelectedChat(chat)}
               >
