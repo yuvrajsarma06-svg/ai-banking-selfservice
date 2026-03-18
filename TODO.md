@@ -1,28 +1,32 @@
-# Biometric Face Authentication Implementation
+# Dashboard Redesign TODO
 
-## TODO List:
+## Task: Redesign Banking AI Self-Service Dashboard to Modern Fintech Style
 
-### Step 1: Install face-api.js dependency
-- [x] Add face-api.js to frontend-kiosk package.json
+### Steps to Complete:
 
-### Step 2: Create FaceAuth component
-- [x] Create FaceAuth.js component with camera capture
-- [x] Implement face detection using face-api.js
-- [x] Add face mapping verification
-- [x] Add capture button functionality
+1. [x] Create DashboardWidgets.js - Contains all new dashboard widgets:
+   - [x] Balance Card Widget (credit card style with gradient)
+   - [x] Transactions Widget (recent transactions list)
+   - [x] Quick Transfer Widget
+   - [x] Currency Conversion Widget
+   - [x] Analytics Chart (using Recharts)
+   - [x] Quick Transfer Section (contacts)
 
-### Step 3: Create FaceAuth CSS styles
-- [x] Create FaceAuth.css for styling the component
+2. [x] Update App.js:
+   - [x] Import DashboardWidgets component
+   - [x] Add dashboard widgets above existing services
+   - [x] Keep all existing 10 services unchanged
 
-### Step 4: Update App.js
-- [x] Replace simple biometric step with FaceAuth component
+3. [ ] Improve existing service card styling:
+   - [ ] Add circular icon backgrounds
+   - [ ] Enhance shadows and hover animations
 
-### Step 5: Update Auth Service
-- [x] Add endpoint to store face templates
-- [x] Add endpoint to verify face against stored template
+4. [ ] Test the implementation
 
-### Step 6: Update API Gateway
-- [x] Add proxy routing for auth service
-
-## Implementation Status: COMPLETED ✓
+### Completion Criteria:
+- All existing 10 services remain unchanged
+- New dashboard widgets appear above services
+- Modern fintech visual style achieved
+- Smooth animations using Framer Motion
+- Recharts used for analytics chart
 
