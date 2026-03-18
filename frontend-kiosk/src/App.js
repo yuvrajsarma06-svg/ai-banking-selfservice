@@ -1,5 +1,59 @@
-import React, { useState, useEffect } from 'react';
-import './App.css';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import {
+  Box,
+  Container,
+  Card,
+  CardContent,
+  CardActions,
+  Typography,
+  Button,
+  TextField,
+  Grid,
+  Paper,
+  Alert,
+  CircularProgress,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  IconButton,
+  AppBar,
+  Toolbar,
+  Avatar,
+  Chip,
+  Divider,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Fade,
+  Zoom,
+} from '@mui/material';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Chat as ChatIcon,
+  AccountBalance as TransferIcon,
+  AccountCircle as AccountIcon,
+  Phone as VoiceIcon,
+  Description as StatementIcon,
+  Payment as BillIcon,
+  CreditCard as CardIcon,
+  MenuBook as ChequeIcon,
+  Home as LoanIcon,
+  QueuePlayNext as QueueIcon,
+  AdminPanelSettings as AdminIcon,
+  ArrowBack as ArrowBackIcon,
+  Send as SendIcon,
+  AttachMoney as MoneyIcon,
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  Security as SecurityIcon,
+} from '@mui/icons-material';
+
+import { getTheme } from './theme';
+import Layout from './components/Layout';
+import DashboardWidgets, { StatsCards, ActivityFeed } from './components/DashboardWidgets';
 import ChatService from './services/ChatService';
 import TransferService from './services/TransferService';
 import AccountService from './services/AccountService';
@@ -15,28 +69,61 @@ import AdminDashboard from './pages/AdminDashboard';
 import AgentLogin from './pages/AgentLogin';
 import AgentDashboard from './pages/AgentDashboard';
 import FaceAuth from './components/FaceAuth';
-import './styles/AccessibilitySettings.css';
-import './styles/AdminDashboard.css';
-import './styles/LoanService.css';
-import './styles/QueueManagementService.css';
+
+// Service card configurations
+const serviceCards = [
+  { id: 'chat', title: 'chat', desc: 'chatDesc', icon: <ChatIcon sx={{ fontSize: 40 }} /> },
+  { id: 'transfer', title: 'transfer', desc: 'transferDesc', icon: <TransferIcon sx={{ fontSize: 40 }} /> },
+  { id: 'account', title: 'account', desc: 'accountDesc', icon: <AccountIcon sx={{ fontSize: 40 }} /> },
+  { id: 'voice', title: 'voice', desc: 'voiceDesc', icon: <VoiceIcon sx={{ fontSize: 40 }} /> },
+  { id: 'statement', title: 'statement', desc: 'statementDesc', icon: <StatementIcon sx={{ fontSize: 40 }} /> },
+  { id: 'bill-pay', title: 'bill', desc: 'billDesc', icon: <BillIcon sx={{ fontSize: 40 }} /> },
+  { id: 'card', title: 'card', desc: 'cardDesc', icon: <CardIcon sx={{ fontSize: 40 }} /> },
+  { id: 'cheque', title: 'cheque', desc: 'chequeDesc', icon: <ChequeIcon sx={{ fontSize: 40 }} /> },
+  { id: 'loan', title: 'loan', desc: 'loanDesc', icon: <LoanIcon sx={{ fontSize: 40 }} /> },
+  { id: 'queue', title: 'queue', desc: 'queueDesc', icon: <QueueIcon sx={{ fontSize: 40 }} /> },
+];
+
+// Animation variants
+const pageVariants = {
+  initial: { opacity: 0, scale: 0.95 },
+  animate: { opacity: 1, scale: 1 },
+  exit: { opacity: 0, scale: 0.95 },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      delay: i * 0.1,
+      duration: 0.4,
+    },
+  }),
+};
 
 function App() {
+  // Dark/Light mode state
+  const [darkMode, setDarkMode] = useState(false);
+  
+  // Get theme based on darkMode
+  const theme = useMemo(() => getTheme(darkMode), [darkMode]);
+
   // Simple hash-based routing
   const [currentRoute, setCurrentRoute] = useState(window.location.hash.replace('#/', '') || '');
   
-  // Listen for hash changes
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#/', '') || '';
       setCurrentRoute(hash);
     };
-    
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
   
   // Authentication states
-  const [authStep, setAuthStep] = useState('login'); // login, otp, biometric, authenticated
+  const [authStep, setAuthStep] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
@@ -44,7 +131,7 @@ function App() {
   const [sessionToken, setSessionToken] = useState(null);
   const [sessionExpiry, setSessionExpiry] = useState(null);
   
-  // User profile data (captured during authentication)
+  // User profile data
   const [userProfile, setUserProfile] = useState({
     capturedFace: null,
     customerId: 'CUS' + Math.random().toString(36).substr(2, 8).toUpperCase(),
@@ -77,14 +164,14 @@ function App() {
           handleLogout('Session expired. Please login again.');
           clearInterval(checkTimeout);
         }
-      }, 60000); // Check every minute
+      }, 60000);
       return () => clearInterval(checkTimeout);
     }
   }, [sessionExpiry]);
 
   const translations = {
     en: {
-      title: '🏦 Banking AI Self-Service Platform',
+      title: 'Banking AI Self-Service Platform',
       welcome: 'Welcome to the future of banking',
       login: 'Login',
       email: 'Email',
@@ -122,10 +209,10 @@ function App() {
       queue: 'Queue System',
       queueDesc: 'Get branch token',
       admin: 'Admin Dashboard',
-      adminDesc: 'View analytics & reports'
+      adminDesc: 'View analytics & reports',
     },
     hi: {
-      title: '🏦 बैंकिंग AI सेल्फ-सर्विस प्लेटफॉर्म',
+      title: 'बैंकिंग AI सेल्फ-सर्विस प्लेटफॉर्म',
       welcome: 'बैंकिंग के भविष्य में आपका स्वागत है',
       login: 'लॉगिन',
       email: 'ईमेल',
@@ -163,13 +250,13 @@ function App() {
       queue: 'कतार प्रणाली',
       queueDesc: 'शाखा टोकन प्राप्त करें',
       admin: 'प्रशासक डैशबोर्ड',
-      adminDesc: 'विश्लेषण और रिपोर्ट देखें'
+      adminDesc: 'विश्लेषण और रिपोर्ट देखें',
     }
   };
 
   const t = translations[language];
 
-const handleLogin = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     try {
       const response = await fetch('/api/auth/request-otp', {
@@ -180,12 +267,9 @@ const handleLogin = async (e) => {
       
       let data;
       try {
-        // Read response text first
         const text = await response.text();
-        // Try to parse as JSON
         data = JSON.parse(text);
       } catch (jsonError) {
-        // Handle non-JSON responses - use demo mode
         console.log('Backend not available, using demo mode');
         const demoOtp = '123456';
         alert(`Demo Mode: Your OTP is ${demoOtp}`);
@@ -204,7 +288,6 @@ const handleLogin = async (e) => {
         alert(data.message || 'Invalid email');
       }
     } catch (error) {
-      // Network error - use demo mode
       console.log('Network error, using demo mode:', error.message);
       const demoOtp = '123456';
       alert(`Demo Mode: Your OTP is ${demoOtp}`);
@@ -215,7 +298,6 @@ const handleLogin = async (e) => {
 
   const handleOtpVerify = async (e) => {
     e.preventDefault();
-    // Demo mode: accept any 6-digit OTP
     if (otp === '123456' || otp.length === 6) {
       setSessionToken('demo-session-' + Date.now());
       setSessionExpiry(new Date().getTime() + 30 * 60 * 1000);
@@ -233,13 +315,9 @@ const handleLogin = async (e) => {
       
       let data;
       try {
-        // Read response text first
         const text = await response.text();
-        // Try to parse as JSON
         data = JSON.parse(text);
       } catch (jsonError) {
-        // Handle non-JSON responses - use demo mode
-        console.log('Backend not available, using demo mode');
         setSessionToken('demo-session-' + Date.now());
         setSessionExpiry(new Date().getTime() + 30 * 60 * 1000);
         setUserRole('customer');
@@ -256,8 +334,6 @@ const handleLogin = async (e) => {
         alert(data.message || 'Invalid OTP');
       }
     } catch (error) {
-      // Network error - use demo mode
-      console.log('Network error, using demo mode');
       setSessionToken('demo-session-' + Date.now());
       setSessionExpiry(new Date().getTime() + 30 * 60 * 1000);
       setUserRole('customer');
@@ -267,7 +343,6 @@ const handleLogin = async (e) => {
 
   const handleBiometric = async (e) => {
     e.preventDefault();
-    // Demo mode - always succeed when backend is not available
     setAuthStep('authenticated');
     setCurrentService(null);
   };
@@ -285,19 +360,12 @@ const handleLogin = async (e) => {
 
   const isLoggedIn = authStep === 'authenticated';
 
-  const appClassName = `App ${accessibility.largeText ? 'accessibility-large-text' : ''} ${accessibility.highContrast ? 'accessibility-high-contrast' : ''} ${accessibility.simplifiedUI ? 'accessibility-simplify-ui' : ''}`;
-
-  const fontSizeStyle = {
-    fontSize: accessibility.fontSize === 'large' ? '18px' : accessibility.fontSize === 'xl' ? '20px' : '16px'
-  };
-
   // Render based on route
   const renderContent = () => {
     switch (currentRoute) {
       case 'agent-login':
         return <AgentLogin />;
       case 'agent-dashboard':
-        // Check if agent is logged in
         const isAgentLoggedIn = sessionStorage.getItem('isAgentLoggedIn');
         if (!isAgentLoggedIn) {
           window.location.hash = '#/agent-login';
@@ -309,174 +377,405 @@ const handleLogin = async (e) => {
     }
   };
 
+  const renderServiceCard = (service, index) => (
+    <Grid item xs={12} sm={6} md={4} key={service.id}>
+      <motion.div
+        custom={index}
+        variants={cardVariants}
+        initial="hidden"
+        animate="visible"
+        whileHover={{ scale: 1.03, y: -5 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <Card
+          sx={{
+            height: '100%',
+            cursor: 'pointer',
+            bgcolor: 'background.paper',
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: 2,
+            transition: 'all 0.3s ease-in-out',
+            '&:hover': {
+              borderColor: 'primary.main',
+              boxShadow: 6,
+            },
+          }}
+          onClick={() => setCurrentService(service.id)}
+        >
+          <CardContent sx={{ textAlign: 'center', py: 4 }}>
+            <motion.div
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              transition={{ type: 'spring', stiffness: 300 }}
+            >
+              <Box sx={{ color: 'primary.main', mb: 2 }}>
+                {service.icon}
+              </Box>
+            </motion.div>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+              {t[service.title]}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t[service.desc]}
+            </Typography>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </Grid>
+  );
+
   const renderCustomerApp = () => (
     <>
-      <main className="App-main">
-        {authStep === 'login' && (
-          <div className="login-container">
-            <h2>{t.login}</h2>
-            <form onSubmit={handleLogin}>
-              <div className="form-group">
-                <label>{t.email}:</label>
-                <input
+      {/* Login Step */}
+      {authStep === 'login' && (
+        <Container maxWidth="sm" sx={{ mt: 8 }}>
+          <motion.div
+            initial="initial"
+            animate="animate"
+            variants={pageVariants}
+          >
+            <Paper 
+              elevation={4} 
+              sx={{ 
+                p: 5, 
+                borderRadius: 4,
+                background: theme.palette.mode === 'dark' 
+                  ? 'linear-gradient(180deg, #111d32 0%, #0a1628 100%)'
+                  : 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+              }}>
+              <Box sx={{ textAlign: 'center', mb: 4 }}>
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
+                >
+                  <Avatar 
+                    sx={{ 
+                      bgcolor: 'primary.main', 
+                      width: 80, 
+                      height: 80, 
+                      m: '0 auto', 
+                      mb: 2,
+                      boxShadow: '0 8px 24px rgba(30, 58, 95, 0.3)',
+                    }}
+                  >
+                    <SecurityIcon sx={{ fontSize: 40 }} />
+                  </Avatar>
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>
+                    {t.login}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {t.welcome}
+                  </Typography>
+                </motion.div>
+              </Box>
+              
+              <motion.form
+                onSubmit={handleLogin}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                <TextField
+                  fullWidth
+                  label={t.email}
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={t.enterEmail}
                   required
+                  sx={{ mb: 2 }}
                 />
-              </div>
-              <div className="form-group">
-                <label>{t.password}:</label>
-                <input
+                <TextField
+                  fullWidth
+                  label={t.password}
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={t.enterPassword}
                   required
+                  sx={{ mb: 3 }}
                 />
-              </div>
-              <button type="submit" className="btn-primary">{t.loginBtn}</button>
-            </form>
-            <p className="demo-note">{t.demo}</p>
-            <div className="agent-link-container">
-              <a href="#/agent-login" className="agent-link">👨‍💼 Agent Login</a>
-            </div>
-          </div>
-        )}
+                <Button
+                  type="submit"
+                  variant="contained"
+                  fullWidth
+                  size="large"
+                  sx={{ mb: 2 }}
+                >
+                  {t.loginBtn}
+                </Button>
+              </motion.form>
+              
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  {t.demo}
+                </Alert>
+              </motion.div>
+              
+              <Divider sx={{ my: 2 }} />
+              
+              <Box sx={{ textAlign: 'center' }}>
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Button
+                    variant="outlined"
+                    startIcon={<AdminIcon />}
+                    href="#/agent-login"
+                    fullWidth
+                  >
+                    Agent Login
+                  </Button>
+                </motion.div>
+              </Box>
+            </Paper>
+          </motion.div>
+        </Container>
+      )}
 
-        {authStep === 'otp' && (
-          <div className="login-container">
-            <h2>{t.otp}</h2>
-            <form onSubmit={handleOtpVerify}>
-              <div className="form-group">
-                <label>{t.enterOtp}</label>
-                <input
-                  type="text"
-                  maxLength="6"
+      {/* OTP Step */}
+      {authStep === 'otp' && (
+        <Container maxWidth="sm" sx={{ mt: 8 }}>
+          <motion.div
+            initial="initial"
+            animate="animate"
+            variants={pageVariants}
+          >
+            <Paper 
+              elevation={4} 
+              sx={{ 
+                p: 5, 
+                borderRadius: 4,
+                background: theme.palette.mode === 'dark' 
+                  ? 'linear-gradient(180deg, #111d32 0%, #0a1628 100%)'
+                  : 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+              }}
+            >
+              <Box sx={{ textAlign: 'center', mb: 4 }}>
+                <Avatar 
+                  sx={{ 
+                    bgcolor: 'secondary.main', 
+                    width: 80, 
+                    height: 80, 
+                    m: '0 auto', 
+                    mb: 2,
+                    boxShadow: '0 8px 24px rgba(0, 200, 83, 0.3)',
+                  }}
+                >
+                  <SecurityIcon sx={{ fontSize: 40 }} />
+                </Avatar>
+                <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>
+                  {t.otp}
+                </Typography>
+              </Box>
+              
+              <form onSubmit={handleOtpVerify}>
+                <TextField
+                  fullWidth
+                  label={t.enterOtp}
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                   placeholder="000000"
+                  inputProps={{ maxLength: 6 }}
                   required
+                  sx={{ mb: 3 }}
                 />
-              </div>
-              <button type="submit" className="btn-primary">{t.verifyOtp}</button>
-            </form>
-          </div>
-        )}
+                <Button
+                  type="submit"
+                  variant="contained"
+                  fullWidth
+                  size="large"
+                  color="secondary"
+                >
+                  {t.verifyOtp}
+                </Button>
+              </form>
+            </Paper>
+          </motion.div>
+        </Container>
+      )}
 
-{authStep === 'biometric' && (
-          <div className="login-container">
-            <h2>{t.biometric}</h2>
-            <FaceAuth onSuccess={() => {
-              setAuthStep('authenticated');
-              setCurrentService(null);
-            }} />
-          </div>
-        )}
+      {/* Biometric Step */}
+      {authStep === 'biometric' && (
+        <Container maxWidth="sm" sx={{ mt: 8 }}>
+          <motion.div
+            initial="initial"
+            animate="animate"
+            variants={pageVariants}
+          >
+            <Paper 
+              elevation={4} 
+              sx={{ 
+                p: 5, 
+                borderRadius: 4,
+                background: theme.palette.mode === 'dark' 
+                  ? 'linear-gradient(180deg, #111d32 0%, #0a1628 100%)'
+                  : 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+              }}
+            >
+              <Box sx={{ textAlign: 'center', mb: 4 }}>
+                <Avatar 
+                  sx={{ 
+                    bgcolor: 'success.main', 
+                    width: 80, 
+                    height: 80, 
+                    m: '0 auto', 
+                    mb: 2,
+                    boxShadow: '0 8px 24px rgba(0, 200, 83, 0.3)',
+                  }}
+                >
+                  <SecurityIcon sx={{ fontSize: 40 }} />
+                </Avatar>
+                <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>
+                  {t.biometric}
+                </Typography>
+              </Box>
+              
+              <FaceAuth onSuccess={() => {
+                setAuthStep('authenticated');
+                setCurrentService(null);
+              }} />
+            </Paper>
+          </motion.div>
+        </Container>
+      )}
 
-        {isLoggedIn && (
-          <div className="dashboard-container">
-            <div className="dashboard-header">
-              <div>
-                <h2>Welcome, {email}!</h2>
-                <p style={{ color: '#999', fontSize: '13px', margin: '5px 0 0 0' }}>
-                  Role: {userRole === 'admin' ? 'Administrator' : 'Customer'} | Session expires in 30 min
-                </p>
-              </div>
-              <button onClick={() => handleLogout()} className="btn-logout">{t.logout}</button>
-            </div>
-
-            {currentService === 'admin' && userRole === 'admin' ? (
-              <div className="service-detail">
-                <button 
-                  onClick={() => setCurrentService(null)} 
-                  className="btn-back"
+      {/* Authenticated - Dashboard View */}
+      {isLoggedIn && (
+        <>
+          {currentService === 'admin' && userRole === 'admin' ? (
+            <Box>
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+              >
+                <Button
+                  startIcon={<ArrowBackIcon />}
+                  onClick={() => setCurrentService(null)}
+                  sx={{ mb: 3 }}
                 >
                   {t.backServices}
-                </button>
-                <AdminDashboard />
-              </div>
-            ) : currentService ? (
-              <div className="service-detail">
-                <button 
-                  onClick={() => setCurrentService(null)} 
-                  className="btn-back"
+                </Button>
+              </motion.div>
+              <AdminDashboard />
+            </Box>
+          ) : currentService ? (
+            <Box>
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+              >
+                <Button
+                  startIcon={<ArrowBackIcon />}
+                  onClick={() => setCurrentService(null)}
+                  sx={{ mb: 3 }}
                 >
                   {t.backServices}
-                </button>
-                
-                {currentService === 'chat' && <ChatService email={email} />}
-                {currentService === 'transfer' && <TransferService email={email} />}
-                {currentService === 'account' && <AccountService email={email} />}
-                {currentService === 'voice' && <VoiceService email={email} />}
-                {currentService === 'statement' && <StatementService email={email} />}
-                {currentService === 'bill-pay' && <BillPaymentService email={email} />}
-                {currentService === 'card' && <CardManagementService email={email} />}
-                {currentService === 'cheque' && <ChequeBookService email={email} />}
-                {currentService === 'loan' && <LoanService email={email} />}
-                {currentService === 'queue' && <QueueManagementService email={email} />}
-              </div>
-            ) : (
-              <div className="services-view">
-                <p className="services-subtitle">{t.selectService}</p>
-                <div className="services-grid">
-                  <div className="service-card clickable" onClick={() => setCurrentService('chat')}>
-                    <div className="service-icon">💬</div>
-                    <h3>{t.chat}</h3>
-                    <p>{t.chatDesc}</p>
-                  </div>
-                  <div className="service-card clickable" onClick={() => setCurrentService('transfer')}>
-                    <div className="service-icon">💰</div>
-                    <h3>{t.transfer}</h3>
-                    <p>{t.transferDesc}</p>
-                  </div>
-                  <div className="service-card clickable" onClick={() => setCurrentService('account')}>
-                    <div className="service-icon">📊</div>
-                    <h3>{t.account}</h3>
-                    <p>{t.accountDesc}</p>
-                  </div>
-                  <div className="service-card clickable" onClick={() => setCurrentService('voice')}>
-                    <div className="service-icon">📞</div>
-                    <h3>{t.voice}</h3>
-                    <p>{t.voiceDesc}</p>
-                  </div>
-                  <div className="service-card clickable" onClick={() => setCurrentService('statement')}>
-                    <div className="service-icon">📋</div>
-                    <h3>{t.statement}</h3>
-                    <p>{t.statementDesc}</p>
-                  </div>
-                  <div className="service-card clickable" onClick={() => setCurrentService('bill-pay')}>
-                    <div className="service-icon">💳</div>
-                    <h3>{t.bill}</h3>
-                    <p>{t.billDesc}</p>
-                  </div>
-                  <div className="service-card clickable" onClick={() => setCurrentService('card')}>
-                    <div className="service-icon">🎫</div>
-                    <h3>{t.card}</h3>
-                    <p>{t.cardDesc}</p>
-                  </div>
-                  <div className="service-card clickable" onClick={() => setCurrentService('cheque')}>
-                    <div className="service-icon">📄</div>
-                    <h3>{t.cheque}</h3>
-                    <p>{t.chequeDesc}</p>
-                  </div>
-                  <div className="service-card clickable" onClick={() => setCurrentService('loan')}>
-                    <div className="service-icon">🏠</div>
-                    <h3>{t.loan}</h3>
-                    <p>{t.loanDesc}</p>
-                  </div>
-                  <div className="service-card clickable" onClick={() => setCurrentService('queue')}>
-                    <div className="service-icon">🎟️</div>
-                    <h3>{t.queue}</h3>
-                    <p>{t.queueDesc}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </main>
+                </Button>
+              </motion.div>
+              
+              {currentService === 'chat' && <ChatService email={email} />}
+              {currentService === 'transfer' && <TransferService email={email} />}
+              {currentService === 'account' && <AccountService email={email} />}
+              {currentService === 'voice' && <VoiceService email={email} />}
+              {currentService === 'statement' && <StatementService email={email} />}
+              {currentService === 'bill-pay' && <BillPaymentService email={email} />}
+              {currentService === 'card' && <CardManagementService email={email} />}
+              {currentService === 'cheque' && <ChequeBookService email={email} />}
+              {currentService === 'loan' && <LoanService email={email} />}
+              {currentService === 'queue' && <QueueManagementService email={email} />}
+            </Box>
+          ) : (
+            <Box sx={{ maxWidth: 1400, margin: '0 auto' }}>
+              {/* NEW: Dashboard Widgets Section */}
+              <DashboardWidgets 
+                email={email} 
+                balance={userProfile.balance}
+                onServiceClick={(serviceId) => setCurrentService(serviceId)}
+              />
+              
+              {/* EXISTING: Services Section */}
+              <Box sx={{ mt: 3 }}>
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, mb: 1 }}>
+                    Our Services
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                    {t.selectService}
+                  </Typography>
+                </motion.div>
+              </Box>
+              
+              <Grid container spacing={2}>
+                {serviceCards.map((service, index) => renderServiceCard(service, index))}
+              </Grid>
+              
+              {userRole === 'admin' && (
+                <Box sx={{ mt: 4 }}>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                  >
+                    <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+                      Administration
+                    </Typography>
+                  </motion.div>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <motion.div
+                        variants={cardVariants}
+                        initial="hidden"
+                        animate="visible"
+                        custom={0}
+                        whileHover={{ scale: 1.03, y: -5 }}
+                      >
+                        <Card
+                          sx={{
+                            cursor: 'pointer',
+                            bgcolor: 'background.paper',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            '&:hover': { borderColor: 'secondary.main', boxShadow: 6 },
+                          }}
+                          onClick={() => setCurrentService('admin')}
+                        >
+                          <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                            <Box sx={{ color: 'secondary.main', mb: 2 }}>
+                              <AdminIcon sx={{ fontSize: 40 }} />
+                            </Box>
+                            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+                              {t.admin}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {t.adminDesc}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    </Grid>
+                  </Grid>
+                </Box>
+              )}
+            </Box>
+          )}
+        </>
+      )}
 
       {showAccessibility && (
         <AccessibilitySettings 
@@ -485,52 +784,33 @@ const handleLogin = async (e) => {
           onClose={() => setShowAccessibility(false)}
         />
       )}
-
-      <footer className="App-footer">
-        <p>APIs: Gateway (5000) | Auth (5001) | Chat (5002) | Transactions (5003) | Analytics (5004) | Voice (5005)</p>
-      </footer>
     </>
   );
 
   return (
-    <div className={appClassName} style={fontSizeStyle}>
-      <header className="App-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <div>
-            <h1>{t.title}</h1>
-            <p>{t.welcome}</p>
-          </div>
-          {isLoggedIn && (
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <select 
-                value={language} 
-                onChange={(e) => setLanguage(e.target.value)}
-                style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', cursor: 'pointer' }}
-              >
-                <option value="en">English</option>
-                <option value="hi">हिंदी</option>
-              </select>
-              <button 
-                onClick={() => setShowAccessibility(true)}
-                style={{ padding: '8px 16px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '600' }}
-              >
-                ♿ {t.biometric}
-              </button>
-              {userRole === 'admin' && (
-                <button 
-                  onClick={() => setCurrentService('admin')}
-                  style={{ padding: '8px 16px', background: '#764ba2', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '600' }}
-                >
-                  📊 Admin
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      </header>
-
-      {renderContent()}
-    </div>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      {isLoggedIn ? (
+        <Layout
+          currentService={currentService}
+          setCurrentService={setCurrentService}
+          userRole={userRole}
+          email={email}
+          onLogout={() => handleLogout()}
+          showAccessibility={showAccessibility}
+          setShowAccessibility={setShowAccessibility}
+          language={language}
+          setLanguage={setLanguage}
+          t={t}
+          darkMode={darkMode}
+          setDarkMode={setDarkMode}
+        >
+          {renderContent()}
+        </Layout>
+      ) : (
+        renderContent()
+      )}
+    </ThemeProvider>
   );
 }
 

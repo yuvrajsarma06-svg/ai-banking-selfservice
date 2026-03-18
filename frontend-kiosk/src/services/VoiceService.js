@@ -1,6 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Alert,
+  CircularProgress,
+  Paper,
+  Chip,
+  IconButton,
+  TextField,
+} from '@mui/material';
+import {
+  Phone as PhoneIcon,
+  PhoneDisabled as PhoneDisabledIcon,
+  Mic as MicIcon,
+  MicOff as MicOffIcon,
+  CallEnd as CallEndIcon,
+} from '@mui/icons-material';
 import useVoiceChat from '../hooks/useVoiceChat';
-import '../styles/VoiceService.css';
 
 function VoiceService({ email }) {
   const [callStatus, setCallStatus] = useState('ready');
@@ -10,14 +29,13 @@ function VoiceService({ email }) {
   const [error, setError] = useState(null);
   const [messages, setMessages] = useState([]);
   const [botReply, setBotReply] = useState('');
-  const durationRef = React.useRef(null);
+  const durationRef = useRef(null);
 
   const { input: transcript, setInput: setTranscript, listening, toggleMic, stopMic, startMic } = useVoiceChat(
     (text) => handleProcessSpeech(text),
     botReply
   );
 
-  // Timer for call duration
   useEffect(() => {
     if (callStatus === 'active') {
       durationRef.current = setInterval(() => {
@@ -28,7 +46,6 @@ function VoiceService({ email }) {
         clearInterval(durationRef.current);
       }
     }
-
     return () => {
       if (durationRef.current) {
         clearInterval(durationRef.current);
@@ -46,18 +63,12 @@ function VoiceService({ email }) {
     try {
       setLoading(true);
       setError(null);
-
       const response = await fetch('http://localhost:5005/voice/call-start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: email,
-          phoneNumber: '+1234567890' // Demo phone
-        })
+        body: JSON.stringify({ userId: email, phoneNumber: '+1234567890' })
       });
-
       const data = await response.json();
-
       if (response.ok || data.success) {
         setCallId(data.callId || 'CALL' + Date.now());
         setCallStatus('active');
@@ -73,8 +84,6 @@ function VoiceService({ email }) {
         setError(data.error || 'Failed to start call');
       }
     } catch (err) {
-      setError('Call initiation error: ' + err.message);
-      // Still simulate call for demo
       setCallId('CALL' + Date.now());
       setCallStatus('active');
       setCallDuration(0);
@@ -93,79 +102,45 @@ function VoiceService({ email }) {
   const handleProcessSpeech = async (spokenText) => {
     const textToProcess = typeof spokenText === 'string' ? spokenText : transcript;
     if (!textToProcess.trim()) return;
-
+    setLoading(true);
+    const userMsg = { id: messages.length + 1, type: 'user', text: textToProcess, timestamp: new Date() };
+    setMessages(prev => [...prev, userMsg]);
     try {
-      setLoading(true);
-
-      // Add user message
-      const userMsg = {
-        id: messages.length + 1,
-        type: 'user',
-        text: textToProcess,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, userMsg]);
-
       const response = await fetch('http://localhost:5005/process-speech', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          callId: callId,
-          speechInput: textToProcess,
-          userId: email
-        })
+        body: JSON.stringify({ callId, speechInput: textToProcess, userId: email })
       });
-
       const data = await response.json();
-
       const replyText = data.response || 'Processing your request...';
-
-      // Add bot response
-      const botMsg = {
-        id: messages.length + 2,
-        type: 'bot',
-        text: replyText,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, botMsg]);
+      setMessages(prev => [...prev, { id: prev.length + 2, type: 'bot', text: replyText, timestamp: new Date() }]);
       setBotReply(replyText);
-
       setTranscript('');
     } catch (err) {
-      console.error('Speech processing error:', err);
+      setMessages(prev => [...prev, { id: prev.length + 2, type: 'bot', text: 'Processing your request...', timestamp: new Date() }]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleEndCall = async () => {
+    setLoading(true);
+    stopMic();
     try {
-      setLoading(true);
-      stopMic();
-
       await fetch('http://localhost:5005/voice/call-end', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          callId: callId,
-          duration: callDuration,
-          userId: email
-        })
+        body: JSON.stringify({ callId, duration: callDuration, userId: email })
       });
-
-      setCallStatus('ended');
-      setMessages(prev => [...prev, {
-        id: prev.length + 1,
-        type: 'system',
-        text: `Call ended. Duration: ${formatDuration(callDuration)}`,
-        timestamp: new Date()
-      }]);
-    } catch (err) {
-      console.error('Call end error:', err);
-      setCallStatus('ended');
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) {}
+    setCallStatus('ended');
+    setMessages(prev => [...prev, {
+      id: prev.length + 1,
+      type: 'system',
+      text: `Call ended. Duration: ${formatDuration(callDuration)}`,
+      timestamp: new Date()
+    }]);
+    setLoading(false);
   };
 
   const handleNewCall = () => {
@@ -179,107 +154,113 @@ function VoiceService({ email }) {
   };
 
   return (
-    <div className="voice-service">
-      <div className="voice-header">
-        <h3>📞 Voice Support</h3>
-        {error && <div className="error-message">{error}</div>}
-      </div>
+    <Card sx={{ maxWidth: 600, mx: 'auto' }}>
+      <CardContent>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+          <PhoneIcon color="primary" sx={{ fontSize: 32 }} />
+          <Typography variant="h5" sx={{ fontWeight: 600 }}>
+            Voice Support
+          </Typography>
+        </Box>
 
-      {callStatus === 'ready' ? (
-        <div className="voice-ready">
-          <div className="voice-icon-large">📞</div>
-          <h4>Ready to Connect</h4>
-          <p>Click the button below to start a voice call with our support team</p>
-          <button
-            onClick={handleStartCall}
-            disabled={loading}
-            className="btn-start-call"
-          >
-            {loading ? 'Connecting...' : 'Start Voice Call'}
-          </button>
-        </div>
-      ) : (
-        <div className="voice-active">
-          <div className="call-info">
-            <div className="call-indicator">
-              <div className="pulse-dot"></div>
-              <span>Call Active</span>
-            </div>
-            <div className="call-details">
-              <p><strong>Call ID:</strong> {callId}</p>
-              <p><strong>Duration:</strong> <span className="duration">{formatDuration(callDuration)}</span></p>
-            </div>
-          </div>
+        {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-          {callStatus === 'active' && (
-            <div className="speech-input-area">
-              <div className="transcript-display">
-                <p className="transcript-label">What would you like to do?</p>
-                <p className="transcript-text">{transcript || '(listening...)'}</p>
-              </div>
+        {callStatus === 'ready' && (
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Box sx={{ bgcolor: 'primary.light', borderRadius: '50%', p: 3, display: 'inline-flex', mb: 3 }}>
+              <PhoneIcon sx={{ fontSize: 64, color: 'white' }} />
+            </Box>
+            <Typography variant="h6" gutterBottom>Ready to Connect</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Click the button below to start a voice call with our support team
+            </Typography>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<PhoneIcon />}
+              onClick={handleStartCall}
+              disabled={loading}
+            >
+              {loading ? 'Connecting...' : 'Start Voice Call'}
+            </Button>
+          </Box>
+        )}
 
-              <div className="input-group">
-                <input
-                  type="text"
+        {callStatus === 'active' && (
+          <Box>
+            <Paper sx={{ p: 2, mb: 3, bgcolor: 'success.main', color: 'white' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'white', animation: 'pulse 1s infinite' }} />
+                  <Typography variant="body1" fontWeight={600}>Call Active</Typography>
+                </Box>
+                <Chip label={formatDuration(callDuration)} size="small" sx={{ bgcolor: 'white', color: 'success.main' }} />
+              </Box>
+              <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>Call ID: {callId}</Typography>
+            </Paper>
+
+            <Paper sx={{ p: 2, mb: 3, bgcolor: 'grey.100' }}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>Speak now:</Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
                   value={transcript}
-                  readOnly
-                  placeholder={listening ? "(Listening to you speak...)" : "Press microphone to speak"}
-                  className="voice-input"
-                  style={{ backgroundColor: '#f5f7fa', color: '#666' }}
+                  placeholder={listening ? "Listening..." : "Press microphone to speak"}
+                  InputProps={{ readOnly: true }}
                 />
-                <button
+                <IconButton
+                  color={listening ? 'error' : 'primary'}
                   onClick={toggleMic}
                   disabled={loading}
-                  className={`btn-send-speech ${listening ? 'listening' : ''}`}
-                  title="Toggle Microphone"
+                  sx={{ bgcolor: listening ? 'error.main' : 'primary.main', color: 'white', '&:hover': { bgcolor: listening ? 'error.dark' : 'primary.dark' } }}
                 >
-                  {listening ? '🛑' : '🎤'}
-                </button>
-              </div>
-            </div>
-          )}
+                  {listening ? <MicOffIcon /> : <MicIcon />}
+                </IconButton>
+              </Box>
+            </Paper>
 
-          <div className="voice-messages">
-            {messages.map(msg => (
-              <div key={msg.id} className={`voice-message message-${msg.type}`}>
-                <p>{msg.text}</p>
-                <span className="msg-time">
-                  {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-            ))}
-          </div>
+            <Box sx={{ maxHeight: 200, overflow: 'auto', mb: 3 }}>
+              {messages.map((msg) => (
+                <Paper key={msg.id} sx={{ p: 1.5, mb: 1, bgcolor: msg.type === 'system' ? 'info.light' : msg.type === 'user' ? 'primary.light' : 'grey.200' }}>
+                  <Typography variant="body2">{msg.text}</Typography>
+                  <Typography variant="caption" color="text.secondary">{msg.timestamp.toLocaleTimeString()}</Typography>
+                </Paper>
+              ))}
+            </Box>
 
-          <div className="call-actions">
-            {callStatus === 'active' && (
-              <button
-                onClick={handleEndCall}
-                disabled={loading}
-                className="btn-end-call"
-              >
-                End Call
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+            <Button
+              variant="contained"
+              color="error"
+              fullWidth
+              startIcon={<CallEndIcon />}
+              onClick={handleEndCall}
+              disabled={loading}
+            >
+              End Call
+            </Button>
+          </Box>
+        )}
 
-      {callStatus === 'ended' && (
-        <div className="voice-ended">
-          <div className="end-icon">✓</div>
-          <h4>Call Ended</h4>
-          <p>Call Duration: {formatDuration(callDuration)}</p>
-          <p className="thank-you">Thank you for using our voice service</p>
-          <button
-            onClick={handleNewCall}
-            className="btn-new-call"
-          >
-            Start New Call
-          </button>
-        </div>
-      )}
-    </div>
+        {callStatus === 'ended' && (
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Box sx={{ bgcolor: 'success.main', borderRadius: '50%', p: 3, display: 'inline-flex', mb: 3 }}>
+              <PhoneDisabledIcon sx={{ fontSize: 64, color: 'white' }} />
+            </Box>
+            <Typography variant="h5" gutterBottom>Call Ended</Typography>
+            <Typography variant="body1" sx={{ mb: 1 }}>Duration: {formatDuration(callDuration)}</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Thank you for using our voice service
+            </Typography>
+            <Button variant="outlined" onClick={handleNewCall}>
+              Start New Call
+            </Button>
+          </Box>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
 export default VoiceService;
+

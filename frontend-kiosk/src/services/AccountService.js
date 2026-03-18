@@ -1,5 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import '../styles/AccountService.css';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Alert,
+  CircularProgress,
+  Grid,
+  Paper,
+  Chip,
+  Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+} from '@mui/material';
+import {
+  AccountCircle as AccountIcon,
+  CheckCircle as CheckCircleIcon,
+  AttachMoney as MoneyIcon,
+  CreditCard as CardIcon,
+} from '@mui/icons-material';
 
 function AccountService({ email }) {
   const [accounts, setAccounts] = useState([]);
@@ -24,7 +48,6 @@ function AccountService({ email }) {
           const total = accountsList.reduce((sum, acc) => sum + (acc.balance || 0), 0);
           setTotalBalance(total);
         } else {
-          // Demo data
           const demoAccounts = [
             {
               id: 'ACC001',
@@ -56,7 +79,6 @@ function AccountService({ email }) {
         }
       } catch (err) {
         setError('Failed to load accounts: ' + err.message);
-        // Set demo data on error
         const demoAccounts = [
           {
             id: 'ACC001',
@@ -95,80 +117,140 @@ function AccountService({ email }) {
 
   if (loading) {
     return (
-      <div className="account-service">
-        <div className="account-header">
-          <h3>📊 My Accounts</h3>
-        </div>
-        <div className="loading">Loading your accounts...</div>
-      </div>
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+        <CircularProgress />
+      </Box>
     );
   }
 
   return (
-    <div className="account-service">
-      <div className="account-header">
-        <h3>📊 My Accounts</h3>
-        {error && <div className="error-message">{error}</div>}
-      </div>
+    <Box>
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
 
-      <div className="account-summary">
-        <div className="summary-card">
-          <h4>Total Balance</h4>
-          <p className="balance-total">
-            ${totalBalance.toFixed(2)}
-          </p>
-          <p className="summary-email">Account: {email}</p>
-        </div>
-      </div>
+      {/* Summary Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={4}>
+          <Card sx={{ bgcolor: 'primary.main', color: 'white' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <MoneyIcon sx={{ fontSize: 40 }} />
+                <Box>
+                  <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                    Total Balance
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                    ${totalBalance.toFixed(2)}
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <AccountIcon color="primary" sx={{ fontSize: 40 }} />
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Accounts
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                    {accounts.length}
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
 
-      <div className="accounts-list">
-        <h4 className="accounts-title">Your Accounts</h4>
-        {accounts.length === 0 ? (
-          <div className="no-accounts">No accounts found</div>
-        ) : (
-          accounts.map((account) => (
-            <div key={account.id} className="account-card">
-              <div className="account-card-header">
-                <div>
-                  <h5>{account.accountType || 'Account'}</h5>
-                  <p className="account-number">{account.accountNumber || account.id}</p>
-                </div>
-                <div className="account-status">
-                  <span className={`status ${account.status ? account.status.toLowerCase() : 'active'}`}>
-                    {account.status || 'Active'}
-                  </span>
-                </div>
-              </div>
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <CardIcon color="secondary" sx={{ fontSize: 40 }} />
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Email
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {email}
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
-              <div className="account-details">
-                <div className="detail-row">
-                  <span className="detail-label">Balance:</span>
-                  <span className="detail-value">${(account.balance || 0).toFixed(2)}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Currency:</span>
-                  <span className="detail-value">{account.currency || 'USD'}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Account ID:</span>
-                  <span className="detail-value">{account.id}</span>
-                </div>
-              </div>
+      {/* Accounts Table */}
+      <Card>
+        <CardContent>
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+            Your Accounts
+          </Typography>
+          
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600 }}>Account Type</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Account Number</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Balance</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Currency</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {accounts.map((account) => (
+                  <TableRow key={account.id} hover>
+                    <TableCell>
+                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        {account.accountType || 'Account'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>{account.accountNumber || account.id}</TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body1" sx={{ fontWeight: 600, color: 'success.main' }}>
+                        ${(account.balance || 0).toFixed(2)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>{account.currency || 'USD'}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={account.status || 'Active'}
+                        color="success"
+                        size="small"
+                        icon={<CheckCircleIcon />}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Button size="small" variant="outlined">
+                        View Details
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
 
-              <div className="account-actions">
-                <button className="btn-view-details">View Details</button>
-                <button className="btn-transactions">Recent Transactions</button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      <div className="account-footer">
-        <p>💡 Tip: Click on an account to see more details and transaction history</p>
-      </div>
-    </div>
+      <Paper sx={{ p: 2, mt: 3, bgcolor: 'info.main', color: 'white' }}>
+        <Typography variant="body2">
+          💡 Tip: Click on an account to see more details and transaction history
+        </Typography>
+      </Paper>
+    </Box>
   );
 }
 
 export default AccountService;
+

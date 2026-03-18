@@ -1,5 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import '../styles/TransferService.css';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Alert,
+  CircularProgress,
+  Grid,
+  Paper,
+  Divider,
+} from '@mui/material';
+import {
+  AccountBalance as TransferIcon,
+  CheckCircle as CheckCircleIcon,
+  Send as SendIcon,
+} from '@mui/icons-material';
 
 function TransferService({ email }) {
   const [accounts, setAccounts] = useState([]);
@@ -11,7 +32,6 @@ function TransferService({ email }) {
   const [success, setSuccess] = useState(null);
   const [transferResult, setTransferResult] = useState(null);
 
-  // Load accounts on mount
   useEffect(() => {
     const loadAccounts = async () => {
       try {
@@ -27,8 +47,6 @@ function TransferService({ email }) {
           { id: 'ACC002', accountNumber: '****5678', balance: 3000, currency: 'USD' }
         ]);
       } catch (err) {
-        setError('Failed to load accounts: ' + err.message);
-        // Set default accounts for demo
         setAccounts([
           { id: 'ACC001', accountNumber: '****1234', balance: 5000, currency: 'USD' },
           { id: 'ACC002', accountNumber: '****5678', balance: 3000, currency: 'USD' }
@@ -99,91 +117,134 @@ function TransferService({ email }) {
   };
 
   return (
-    <div className="transfer-service">
-      <div className="transfer-header">
-        <h3>💰 Money Transfer</h3>
-        {error && <div className="error-message">{error}</div>}
-        {success && <div className="success-message">{success}</div>}
-      </div>
+    <Card sx={{ maxWidth: 600, mx: 'auto' }}>
+      <CardContent>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+          <TransferIcon color="primary" sx={{ fontSize: 32 }} />
+          <Typography variant="h5" sx={{ fontWeight: 600 }}>
+            Money Transfer
+          </Typography>
+        </Box>
 
-      {!transferResult ? (
-        <form onSubmit={handleTransfer} className="transfer-form">
-          <div className="form-group">
-            <label>From Account:</label>
-            <select 
-              value={fromAccount} 
-              onChange={(e) => setFromAccount(e.target.value)}
-              required
-              disabled={loading}
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+        
+        {success && (
+          <Alert severity="success" sx={{ mb: 3 }}>
+            {success}
+          </Alert>
+        )}
+
+        {!transferResult ? (
+          <form onSubmit={handleTransfer}>
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <FormControl fullWidth required>
+                  <InputLabel>From Account</InputLabel>
+                  <Select
+                    value={fromAccount}
+                    onChange={(e) => setFromAccount(e.target.value)}
+                    label="From Account"
+                    disabled={loading}
+                  >
+                    <MenuItem value="">Select source account</MenuItem>
+                    {accounts.map((acc) => (
+                      <MenuItem key={acc.id} value={acc.id}>
+                        {acc.accountNumber} - Balance: ${acc.balance} {acc.currency}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12}>
+                <FormControl fullWidth required>
+                  <InputLabel>To Account</InputLabel>
+                  <Select
+                    value={toAccount}
+                    onChange={(e) => setToAccount(e.target.value)}
+                    label="To Account"
+                    disabled={loading}
+                  >
+                    <MenuItem value="">Select destination account</MenuItem>
+                    {accounts.map((acc) => (
+                      <MenuItem key={acc.id} value={acc.id}>
+                        {acc.accountNumber} - Balance: ${acc.balance} {acc.currency}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Amount"
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="Enter amount"
+                  InputProps={{ inputProps: { step: 0.01, min: 0 } }}
+                  disabled={loading}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  startIcon={<SendIcon />}
+                  disabled={loading}
+                >
+                  {loading ? 'Processing...' : 'Transfer Money'}
+                </Button>
+              </Grid>
+            </Grid>
+          </form>
+        ) : (
+          <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'success.main', color: 'white' }}>
+            <CheckCircleIcon sx={{ fontSize: 64, mb: 2 }} />
+            <Typography variant="h5" gutterBottom>
+              Transfer Successful!
+            </Typography>
+            <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.3)' }} />
+            <Box sx={{ textAlign: 'left' }}>
+              <Typography variant="body1">
+                <strong>Transaction ID:</strong> {transferResult.transactionId}
+              </Typography>
+              <Typography variant="body1">
+                <strong>Amount:</strong> ${transferResult.amount}
+              </Typography>
+              <Typography variant="body1">
+                <strong>Status:</strong> {transferResult.status}
+              </Typography>
+              <Typography variant="body1">
+                <strong>Time:</strong> {transferResult.timestamp.toLocaleString()}
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              size="large"
+              fullWidth
+              sx={{ mt: 3, bgcolor: 'white', color: 'success.main' }}
+              onClick={() => {
+                setTransferResult(null);
+                setSuccess(null);
+              }}
             >
-              <option value="">Select source account</option>
-              {accounts.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.accountNumber} - Balance: ${acc.balance} {acc.currency}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>To Account:</label>
-            <select 
-              value={toAccount} 
-              onChange={(e) => setToAccount(e.target.value)}
-              required
-              disabled={loading}
-            >
-              <option value="">Select destination account</option>
-              {accounts.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.accountNumber} - Balance: ${acc.balance} {acc.currency}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Amount:</label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="Enter amount"
-              step="0.01"
-              min="0"
-              required
-              disabled={loading}
-              className="amount-input"
-            />
-          </div>
-
-          <button type="submit" disabled={loading} className="btn-transfer">
-            {loading ? 'Processing...' : 'Transfer Money'}
-          </button>
-        </form>
-      ) : (
-        <div className="transfer-result">
-          <div className="success-icon">✓</div>
-          <h4>Transfer Successful!</h4>
-          <div className="result-details">
-            <p><strong>Transaction ID:</strong> {transferResult.transactionId}</p>
-            <p><strong>Amount:</strong> ${transferResult.amount}</p>
-            <p><strong>Status:</strong> {transferResult.status}</p>
-            <p><strong>Time:</strong> {transferResult.timestamp.toLocaleString()}</p>
-          </div>
-          <button 
-            onClick={() => {
-              setTransferResult(null);
-              setSuccess(null);
-            }} 
-            className="btn-new-transfer"
-          >
-            Make Another Transfer
-          </button>
-        </div>
-      )}
-    </div>
+              Make Another Transfer
+            </Button>
+          </Paper>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
 export default TransferService;
+

@@ -1,6 +1,6 @@
 .agent-dashboard {
   min-height: calc(100vh - 120px);
-  background: #f5f7fa;
+  background: linear-gradient(135deg, #6A5CFF 0%, #8B7BFF 50%, #B794FF 100%);
 }
 
 .agent-dashboard .loading {
@@ -185,7 +185,7 @@
 }
 
 .message-agent .message-bubble {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #7B6CFF 0%, #FF9BD2 100%);
   color: white;
 }
 
@@ -229,13 +229,19 @@
 
 .btn-reply {
   padding: 12px 25px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #7B6CFF 0%, #FF9BD2 100%);
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 14px rgba(123, 108, 255, 0.3);
+}
+
+.btn-reply:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(123, 108, 255, 0.4);
 }
 
 .btn-reply:hover:not(:disabled) {

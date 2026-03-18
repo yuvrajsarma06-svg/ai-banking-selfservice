@@ -1,5 +1,17 @@
 import React, { useState } from 'react';
-import '../styles/AgentLogin.css';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Alert,
+  Avatar,
+} from '@mui/material';
+import {
+  SupportAgent as AgentIcon,
+} from '@mui/icons-material';
 
 function AgentLogin() {
   const [agentId, setAgentId] = useState('');
@@ -14,59 +26,80 @@ function AgentLogin() {
       return;
     }
 
-    // Store agent info in sessionStorage
     sessionStorage.setItem('agentId', agentId);
     sessionStorage.setItem('agentName', agentName);
     sessionStorage.setItem('isAgentLoggedIn', 'true');
 
-    // Redirect to agent dashboard
     window.location.hash = '#/agent-dashboard';
   };
 
   return (
-    <div className="agent-login-container">
-      <div className="agent-login-box">
-        <div className="agent-login-header">
-          <h1>👨‍💼 Agent Login</h1>
-          <p>Banking AI Customer Support</p>
-        </div>
+    <Box sx={{ 
+      minHeight: '100vh', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      bgcolor: 'background.default',
+      p: 2
+    }}>
+      <Card sx={{ maxWidth: 400, width: '100%' }}>
+        <CardContent sx={{ p: 4 }}>
+          <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Avatar sx={{ bgcolor: 'secondary.main', width: 64, height: 64, m: '0 auto', mb: 2 }}>
+              <AgentIcon sx={{ fontSize: 32 }} />
+            </Avatar>
+            <Typography variant="h5" fontWeight={600} gutterBottom>
+              Agent Login
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Banking AI Customer Support
+            </Typography>
+          </Box>
 
-        <form onSubmit={handleLogin} className="agent-login-form">
-          <div className="form-group">
-            <label>Agent ID</label>
-            <input
-              type="text"
+          {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+
+          <form onSubmit={handleLogin}>
+            <TextField
+              fullWidth
+              label="Agent ID"
               value={agentId}
               onChange={(e) => setAgentId(e.target.value)}
               placeholder="Enter your Agent ID (e.g., AGENT001)"
               required
+              sx={{ mb: 2 }}
             />
-          </div>
 
-          <div className="form-group">
-            <label>Your Name</label>
-            <input
-              type="text"
+            <TextField
+              fullWidth
+              label="Your Name"
               value={agentName}
               onChange={(e) => setAgentName(e.target.value)}
               placeholder="Enter your name"
               required
+              sx={{ mb: 3 }}
             />
-          </div>
 
-          {error && <div className="error-message">{error}</div>}
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              size="large"
+            >
+              Login to Dashboard
+            </Button>
+          </form>
 
-          <button type="submit" className="btn-login">
-            Login to Dashboard
-          </button>
-        </form>
-
-        <div className="agent-login-footer">
-          <p>Demo IDs: AGENT001, AGENT002, AGENT003</p>
-          <p>Any name can be used for demo</p>
-        </div>
-      </div>
-    </div>
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Typography variant="caption" color="text.secondary" display="block">
+              Demo IDs: AGENT001, AGENT002, AGENT003
+            </Typography>
+            <Typography variant="caption" color="text.secondary" display="block">
+              Any name can be used for demo
+            </Typography>
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
 
