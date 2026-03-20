@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { io } from 'socket.io-client';
 import '../styles/AgentDashboard.css';
 
 function AgentDashboard() {
@@ -32,9 +33,17 @@ function AgentDashboard() {
     // Simulate fetching active chats from server
     fetchActiveChats();
 
-    // Poll for new chats every 1.5 seconds
-    const interval = setInterval(fetchActiveChats, 1500);
-    return () => clearInterval(interval);
+    // Setup Socket.IO for real-time updates instead of polling
+    const newSocket = io('http://localhost:5002');
+    newSocket.emit('agent_login', storedAgentId);
+
+    newSocket.on('active_chats_update', () => {
+      fetchActiveChats();
+    });
+
+    return () => {
+      newSocket.disconnect();
+    };
   }, []);
 
   const fetchActiveChats = async () => {

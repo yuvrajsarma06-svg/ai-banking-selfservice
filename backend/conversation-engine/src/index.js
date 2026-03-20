@@ -1,11 +1,45 @@
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
 
 const app = express();
 const PORT = process.env.PORT || 5002;
 
 app.use(cors());
 app.use(express.json());
+
+const httpServer = http.createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('A user connected:', socket.id);
+
+  socket.on('join_conversation', (conversationId) => {
+    socket.join(conversationId);
+    console.log(`Socket ${socket.id} joined room ${conversationId}`);
+  });
+
+  socket.on('agent_login', (agentId) => {
+    socket.join('agents');
+    console.log(`Agent ${agentId} joined global agents room`);
+  });
+
+  socket.on('agent_join_chat', (conversationId) => {
+    socket.join(conversationId);
+    console.log(`Agent joined conversation room ${conversationId}`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+});
 
 // Mock data
 const conversations = new Map();
@@ -377,6 +411,14 @@ app.post('/messages', (req, res) => {
   conv.messages.push({ role: 'user', content: message, timestamp: new Date() });
 
   if (isEscalated) {
+    // Alert the agent's room that there is a new message from this user
+    io.to(conversationId).emit('new_message', {
+      role: 'user',
+      content: message,
+      timestamp: new Date()
+    });
+    // Add real-time active chats update
+    io.to('agents').emit('active_chats_update');
     // If escalated, DO NOT generate an automated bot response. Just save the user message.
     return res.json({
       success: true,
@@ -389,6 +431,12 @@ app.post('/messages', (req, res) => {
   const response = generateResponse(intent, message);
 
   conv.messages.push({ role: 'bot', content: response, timestamp: new Date() });
+
+  io.to(conversationId).emit('new_message', {
+    role: 'bot',
+    content: response,
+    timestamp: new Date()
+  });
 
   res.json({
     success: true,
@@ -447,7 +495,14 @@ app.post('/agent/messages', (req, res) => {
     return res.status(404).json({ success: false, message: 'Conversation not found' });
   }
 
-  conv.messages.push({ role: 'agent', content: message, timestamp: new Date(), agentId });
+  const newMessage = { role: 'agent', content: message, timestamp: new Date(), agentId };
+  conv.messages.push(newMessage);
+
+  io.to(conversationId).emit('new_message', {
+    ...newMessage,
+    timestamp: newMessage.timestamp.toISOString()
+  });
+  io.to('agents').emit('active_chats_update');
 
   res.json({
     success: true,
@@ -522,7 +577,13 @@ app.post('/escalate', (req, res) => {
         assignedAgent: targetAgent.id,
         timestamp: new Date()
       });
+      io.to('agents').emit('active_chats_update');
     }
+
+    io.to(conversationId).emit('agent_joined', {
+      agentId: targetAgent.id,
+      agentName: targetAgent.name
+    });
 
     res.json({
       success: true,
@@ -611,7 +672,7 @@ app.get('/user/:userId/preferences', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`✅ Conversation Engine running on port ${PORT}`);
 });
 

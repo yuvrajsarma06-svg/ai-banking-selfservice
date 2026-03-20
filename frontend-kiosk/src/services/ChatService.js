@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Volume1, Volume2, Bot, User, Send, ServerCrash } from 'lucide-react';
 import useVoiceChat from '../hooks/useVoiceChat';
+import { io } from 'socket.io-client';
 import '../styles/ChatService.css';
 
 function ChatService({ email }) {
@@ -13,6 +14,7 @@ function ChatService({ email }) {
   const [waitingForAgent, setWaitingForAgent] = useState(false);
   const messagesEndRef = useRef(null);
   const [botReply, setBotReply] = useState('');
+  const [socket, setSocket] = useState(null);
 
   const { input, setInput, listening: isListening, toggleMic: toggleMicrophone } = useVoiceChat(
     (text) => handleSendMessageWithVoice(text),
@@ -71,15 +73,8 @@ function ChatService({ email }) {
             text: `All agents are currently busy. Your position in queue: ${data.queuePosition}. Estimated wait time: ${data.estimatedWait}. We'll connect you shortly.`,
             timestamp: new Date()
           }]);
-        } else {
-          setAgentConnected(true);
-          setMessages(prev => [...prev, {
-            id: prev.length + 1,
-            sender: 'system',
-            text: `✅ Connected with ${data.agentName}. They will assist you shortly.`,
-            timestamp: new Date()
-          }]);
         }
+        // If connected immediately, the 'agent_joined' socket event will handle the UI update
       }
     } catch (err) {
       setMessages(prev => [...prev, {
@@ -286,67 +281,67 @@ How may I assist you today?`,
     };
 
     startConversation();
+
+    // Initialize socket
+    const newSocket = io('http://localhost:5002');
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.disconnect();
+    };
   }, [email]);
 
-  // Poll for new messages (e.g., from Agent)
+  // Listen for socket events
   useEffect(() => {
-    if (!conversationId || conversationId.startsWith('local_')) return;
+    if (!socket || !conversationId || conversationId.startsWith('local_')) return;
 
-    const fetchMessages = async () => {
-      try {
-        const response = await fetch(`http://localhost:5002/conversations/${conversationId}/messages`);
-        const data = await response.json();
+    socket.emit('join_conversation', conversationId);
 
-        if (data.success && data.messages) {
-          const hasAgentMsg = data.messages.some(m => m.role === 'agent');
-          if (hasAgentMsg) setAgentConnected(true);
+    const handleNewMessage = (msg) => {
+      setMessages(prev => {
+        const senderMap = { 'bot': 'bot', 'user': 'user', 'agent': 'agent' };
+        const mappedSender = senderMap[msg.role] || 'bot';
 
-          setMessages(prev => {
-            let newPrev = [...prev];
-            let changed = false;
-
-            data.messages.forEach((serverMsg, index) => {
-              const existingWithId = newPrev.find(m => m.serverId === index);
-              if (existingWithId) return;
-
-              // Find an unmapped optimistic message that matches
-              let optimisticMatch = undefined;
-              let matchIndex = -1;
-              for (let i = newPrev.length - 1; i >= 0; i--) {
-                const m = newPrev[i];
-                if (m.serverId === undefined && m.sender === serverMsg.role && m.text === serverMsg.content) {
-                  optimisticMatch = m;
-                  matchIndex = i;
-                  break;
-                }
-              }
-
-              if (optimisticMatch) {
-                newPrev[matchIndex] = { ...optimisticMatch, serverId: index };
-                changed = true;
-              } else {
-                newPrev.push({
-                  id: newPrev.length + 1,
-                  sender: serverMsg.role,
-                  text: serverMsg.content,
-                  timestamp: new Date(serverMsg.timestamp),
-                  serverId: index
-                });
-                changed = true;
-              }
-            });
-
-            return changed ? newPrev : prev;
-          });
+        // Simple deduplication since locally added messages and HTTP responses might duplicate with broadcast
+        const recentMessages = prev.slice(-5);
+        if (recentMessages.some(m => m.text === msg.content && m.sender === mappedSender)) {
+          return prev;
         }
-      } catch (err) {
-        console.log('Error polling for messages:', err.message);
-      }
+
+        // If it's an agent message, make sure agentConnected is true
+        if (mappedSender === 'agent') setAgentConnected(true);
+
+        return [...prev, {
+          id: prev.length + 1,
+          sender: mappedSender,
+          text: msg.content,
+          timestamp: new Date(msg.timestamp)
+        }];
+      });
     };
 
-    const pollInterval = setInterval(fetchMessages, 1500);
-    return () => clearInterval(pollInterval);
-  }, [conversationId]);
+    const handleAgentJoined = (data) => {
+      setAgentConnected(true);
+      setMessages(prev => {
+        const joinText = `✅ Connected with ${data.agentName}. They will assist you shortly.`;
+        if (prev.some(m => m.text === joinText)) return prev;
+        return [...prev, {
+          id: prev.length + 1,
+          sender: 'system',
+          text: joinText,
+          timestamp: new Date()
+        }];
+      });
+    };
+
+    socket.on('new_message', handleNewMessage);
+    socket.on('agent_joined', handleAgentJoined);
+
+    return () => {
+      socket.off('new_message', handleNewMessage);
+      socket.off('agent_joined', handleAgentJoined);
+    };
+  }, [socket, conversationId]);
 
   // Auto-scroll to bottom
   useEffect(() => {
